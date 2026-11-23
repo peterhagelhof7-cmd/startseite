@@ -205,9 +205,10 @@ for i in $(seq 1 60); do
 done
 ok "Netzwerk ok"
 
-msg "Grundpakete im Container"
-pct exec "$CTID" -- sh -c 'apt-get -qq update && DEBIAN_FRONTEND=noninteractive apt-get -y -qq install curl ca-certificates >/dev/null'
-ok "curl installiert"
+msg "Container auf aktuellen Stand bringen (die Vorlage kann Monate alt sein)"
+pct exec "$CTID" -- env LANG=C.UTF-8 LC_ALL=C.UTF-8 DEBIAN_FRONTEND=noninteractive sh -c \
+    'apt-get -qq update && apt-get -y -qq -o Dpkg::Options::=--force-confold full-upgrade >/dev/null && apt-get -y -qq install curl ca-certificates >/dev/null'
+ok "Updates eingespielt, curl installiert"
 
 # Einstellungen und Passwoerter als Datei (nur root lesbar) uebergeben, nicht in der Prozessliste
 TMP=$(mktemp -d)
@@ -244,7 +245,7 @@ pct push "$CTID" "$TMP/bootstrap.sh" /root/startseite-bootstrap.sh --perms 700
 rm -f "$TMP/env"
 
 msg "startseite installieren"
-pct exec "$CTID" -- sh /root/startseite-bootstrap.sh "$REPO"
+pct exec "$CTID" -- env LANG=C.UTF-8 LC_ALL=C.UTF-8 sh /root/startseite-bootstrap.sh "$REPO"
 pct exec "$CTID" -- rm -f /root/startseite-bootstrap.sh
 trap - ERR
 
