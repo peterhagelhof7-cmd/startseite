@@ -186,7 +186,7 @@ def _decorate(groups):
     for g in groups:
         for l in g["links"]:
             u = urlsplit(l["url"])
-            l["host"] = u.netloc or u.path
+            l["domain"] = u.netloc or u.path
             l["initial"] = (l["name"][:1] or "?").upper()
             l["hue"] = zlib.crc32(l["name"].lower().encode()) % 360
     return groups
@@ -234,13 +234,18 @@ def _store_call(fn, *args):
 @app.post("/api/groups")
 def api_group_add(request: Request, body: dict = Body(...)):
     require_editor(request)
-    return {"id": _store_call(store.add_group, body.get("name"))}
+    return {"id": _store_call(store.add_group, body.get("name"), body.get("scheme"),
+                              body.get("prefix"), body.get("suffix"))}
 
 
 @app.put("/api/groups/{gid}")
-def api_group_rename(gid: int, request: Request, body: dict = Body(...)):
+def api_group_update(gid: int, request: Request, body: dict = Body(...)):
     require_editor(request)
-    _store_call(store.rename_group, gid, body.get("name"))
+    if "scheme" in body:
+        _store_call(store.update_group, gid, body.get("name"), body.get("scheme"),
+                    body.get("prefix"), body.get("suffix"))
+    else:
+        _store_call(store.rename_group, gid, body.get("name"))
     return {"ok": True}
 
 

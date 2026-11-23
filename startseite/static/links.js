@@ -91,6 +91,53 @@
   });
   if (!editing) filter.focus();
 
+  // ------------------------------------------------ Adress-Vorlagen (gleiche Regeln wie store.build_url)
+  function buildUrl(scheme, prefix, host, suffix) {
+    if (prefix && /[A-Za-z0-9]$/.test(prefix)) prefix += ".";
+    if (suffix && /^[A-Za-z0-9]/.test(suffix)) suffix = "." + suffix;
+    return `${scheme}://${prefix}${host}${suffix}`;
+  }
+  function groupTpl(gid) {
+    const g = $(`.group[data-id="${gid}"]`);
+    return g && g.dataset.scheme ? g.dataset : null;
+  }
+  // Link-Dialog: Beschriftung und Vorschau passend zur gewaehlten Gruppe
+  function updateLinkForm(f) {
+    const t = groupTpl(f.group.value), v = f.url.value.trim(), pv = $(".preview", f);
+    if (t) {
+      $(".url-label", f).textContent = "Namensteil (oder volle Adresse)";
+      f.url.placeholder = "z. B. kunde1";
+      const full = v && !v.includes("://") ? buildUrl(t.scheme, t.prefix, v, t.suffix) : "";
+      pv.textContent = "→ " + (full || buildUrl(t.scheme, t.prefix, "…", t.suffix));
+      pv.hidden = false;
+    } else {
+      $(".url-label", f).textContent = "Adresse";
+      f.url.placeholder = "https://… oder router.lan";
+      pv.hidden = true;
+    }
+  }
+  function updateGroupForm(f) {
+    const on = !!f.scheme.value;
+    $(".tplfields", f).hidden = !on;
+    $(".preview", f).textContent = on ? "Beispiel: " + buildUrl(f.scheme.value, f.prefix.value.trim(), "kunde1", f.suffix.value.trim()) : "";
+  }
+  function groupBody(f) {
+    return { name: f.name.value, scheme: f.scheme.value, prefix: f.prefix.value, suffix: f.suffix.value };
+  }
+  const dl = $("#dlg-link form"), dg = $("#dlg-group form");
+  if (dl) ["input", "change"].forEach((ev) => dl.addEventListener(ev, () => updateLinkForm(dl)));
+  if (dg) ["input", "change"].forEach((ev) => dg.addEventListener(ev, () => updateGroupForm(dg)));
+
+  function confirmDialog(title, msg, okText, danger, onOk) {
+    openDialog("#dlg-confirm", (f) => {
+      $(".title", f).textContent = title;
+      $(".msg", f).textContent = msg;
+      const ok = $("button[value=ok]", f);
+      ok.textContent = okText;
+      ok.className = "btn " + (danger ? "danger" : "primary");
+    }, onOk);
+  }
+
   // ------------------------------------------------ Aktionen
   const actions = {
     login: () => openDialog("#dlg-login", null, async (f) => {
@@ -100,28 +147,34 @@
     logout: async () => {
       try { await api("POST", "/api/logout"); } finally { location.reload(); }
     },
-    "add-group": () => openDialog("#dlg-group", null, async (f) => {
-      await api("POST", "/api/groups", { name: f.name.value });
+    "add-group": () => openDialog("#dlg-group", (f) => updateGroupForm(f), async (f) => {
+      await api("POST", "/api/groups", groupBody(f));
       location.reload();
     }),
-    "rename-group": (btn) => {
+    "edit-group": (btn) => {
       const g = btn.closest(".group");
-      openDialog("#dlg-group", (f) => (f.name.value = g.dataset.name), async (f) => {
-        await api("PUT", "/api/groups/" + g.dataset.id, { name: f.name.value });
+      openDialog("#dlg-group", (f) => {
+        f.name.value = g.dataset.name;
+        f.scheme.value = g.dataset.scheme;
+        f.prefix.value = g.dataset.prefix;
+        f.suffix.value = g.dataset.suffix;
+        updateGroupForm(f);
+      }, async (f) => {
+        await api("PUT", "/api/groups/" + g.dataset.id, groupBody(f));
         location.reload();
       });
     },
     "delete-group": (btn) => {
       const g = btn.closest(".group"), n = $$(".link", g).length;
-      openDialog("#dlg-confirm", (f) => {
-        $(".msg", f.parentNode).textContent = `Gruppe „${g.dataset.name}“` + (n ? ` mit ${n} Link${n > 1 ? "s" : ""}` : "") + " löschen?";
-      }, async () => {
-        await api("DELETE", "/api/groups/" + g.dataset.id);
-        location.reload();
-      });
+      confirmDialog("Löschen?", `Gruppe „${g.dataset.name}“` + (n ? ` mit ${n} Link${n > 1 ? "s" : ""}` : "") + " löschen?",
+        "Löschen", true, async () => {
+          await api("DELETE", "/api/groups/" + g.dataset.id);
+          location.reload();
+        });
     },
     "add-link": (btn) => openDialog("#dlg-link", (f) => {
       if (btn.dataset.group) f.group.value = btn.dataset.group;
+      updateLinkForm(f);
     }, async (f) => {
       await api("POST", "/api/links", { group: f.group.value, name: f.name.value, url: f.url.value, note: f.note.value });
       location.reload();
@@ -130,9 +183,10 @@
       const l = btn.closest(".link");
       openDialog("#dlg-link", (f) => {
         f.name.value = l.dataset.name;
-        f.url.value = l.dataset.url;
+        f.url.value = l.dataset.host || l.dataset.url;     // Vorlagen-Links: nur den Namensteil zeigen
         f.note.value = l.dataset.note;
         f.group.value = l.closest(".group").dataset.id;
+        updateLinkForm(f);
       }, async (f) => {
         await api("PUT", "/api/links/" + l.dataset.id, { group: f.group.value, name: f.name.value, url: f.url.value, note: f.note.value });
         location.reload();
@@ -140,12 +194,31 @@
     },
     "delete-link": (btn) => {
       const l = btn.closest(".link");
-      openDialog("#dlg-confirm", (f) => {
-        $(".msg", f.parentNode).textContent = `Link „${l.dataset.name}“ löschen?`;
-      }, async () => {
+      confirmDialog("Löschen?", `Link „${l.dataset.name}“ löschen?`, "Löschen", true, async () => {
         await api("DELETE", "/api/links/" + l.dataset.id);
         location.reload();
       });
+    },
+    "open-all": (btn) => {
+      const g = btn.closest(".group");
+      const urls = $$(".link", g).filter((l) => !l.hidden).map((l) => $("a", l).href);
+      if (!urls.length) return;
+      const go = () => {
+        let blocked = 0;
+        urls.forEach((u) => {
+          const w = window.open(u, "_blank");
+          if (w) { try { w.opener = null; } catch (_) { /* egal */ } } else blocked++;
+        });
+        if (blocked) {
+          toast(`${blocked} von ${urls.length} Tabs vom Browser blockiert – Pop-ups für diese Seite erlauben (Symbol rechts in der Adressleiste) und erneut klicken.`, true);
+        }
+      };
+      if (urls.length > 10) {
+        confirmDialog("Alle öffnen?", `${urls.length} Links von „${g.dataset.name}“ in neuen Tabs öffnen?`, "Öffnen", false,
+          async () => { go(); });
+      } else {
+        go();
+      }
     },
     import: () => $("#import-file").click(),
     "reset-layout": () => {

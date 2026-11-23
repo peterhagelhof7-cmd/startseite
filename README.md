@@ -6,6 +6,16 @@ Kleine Startseite für das Team, läuft in einem LXC-Container (Debian 13):
   Lesen darf jeder, **Bearbeiten** (anlegen, umbenennen, löschen, per Drag & Drop sortieren und
   zwischen Gruppen verschieben, Export/Import als JSON) nur mit Passwort. Links öffnen in einem
   neuen Tab. Filterfeld mit `/`, Enter öffnet den ersten Treffer.
+- **Alle öffnen**: Der Knopf ⧉ im Kopf einer Gruppe öffnet alle (gefilterten) Links der Gruppe in
+  neuen Tabs. Browser erlauben pro Klick nur einen neuen Tab – beim ersten Mal die Pop-ups für die
+  Startseite erlauben (Symbol rechts in der Adressleiste), danach öffnen sich alle. Ab 11 Links wird nachgefragt.
+- **Adress-Vorlage je Gruppe**: Protokoll (http/https), Präfix und Suffix, z. B. `https://` + Suffix
+  `dyndns.org`. In so einer Gruppe gibt man beim Link nur den Namensteil ein (`kunde1` →
+  `https://kunde1.dyndns.org`); der Anzeigename wird daraus übernommen, wenn er leer bleibt.
+  Ein Punkt wird automatisch ergänzt (Suffix `dyndns.org` → `kunde1.dyndns.org`, Suffix `:8443` →
+  `kunde1:8443`, Präfix `fw-` → `fw-kunde1`). Ändert man die Vorlage später (z. B. http → https),
+  ändern sich alle Links der Gruppe mit. Eine vollständige Adresse (`https://…`) bleibt auch in
+  Vorlagen-Gruppen möglich und wird nicht verändert.
 - **Eigene Anordnung**: Jeder kann sich die Gruppen ohne Anmeldung am Griff ⠿ selbst anordnen.
   Die Reihenfolge wird im Cookie `startseite_layout` gespeichert (10 Jahre, nur dieser Browser);
   „Standard-Anordnung“ verwirft sie. Neu angelegte Gruppen erscheinen hinten. Im Bearbeiten-Modus

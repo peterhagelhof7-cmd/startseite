@@ -94,6 +94,11 @@ input:focus, select:focus, .btn:focus-visible, .icon:focus-visible { outline: 2p
 .group h2 .gname { overflow-wrap: anywhere; }
 .group h2 .count { font-weight: 400; opacity: .7; }
 .group h2 .tools { margin-left: auto; display: flex; }
+.group .tpl { font-family: var(--mono); font-size: .75rem; color: var(--muted); margin: -.3rem .3rem .4rem; overflow-wrap: anywhere; }
+.dlg fieldset.tplbox { border: 1px solid var(--line); border-radius: 8px; padding: .4rem .8rem .2rem; margin: 0 0 .8rem; }
+.dlg fieldset.tplbox legend { font-size: .9rem; padding: 0 .3rem; }
+.dlg fieldset.tplbox legend small { color: var(--muted); }
+.dlg .preview { font-family: var(--mono); font-size: .85rem; color: var(--accent); margin: -.4rem 0 .8rem; overflow-wrap: anywhere; }
 .links { list-style: none; margin: 0; padding: 0; min-height: 1rem; }
 .link { display: flex; align-items: center; border-radius: 8px; }
 .link > a { flex: 1; min-width: 0; display: flex; align-items: center; gap: .65rem; padding: .4rem .45rem; border-radius: 8px; color: var(--text); }
