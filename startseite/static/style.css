@@ -46,7 +46,43 @@ header nav { display: flex; gap: .25rem; }
 header nav a { color: var(--muted); padding: .35rem .7rem; border-radius: 7px; }
 header nav a:hover { background: var(--surface2); text-decoration: none; color: var(--text); }
 header nav a.active { color: var(--text); background: var(--surface2); font-weight: 600; }
-.top-right { margin-left: auto; }
+.top-right { margin-left: auto; display: flex; align-items: center; gap: .6rem; }
+.clock { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; cursor: default; font-size: .92rem; }
+.clock .ctime { color: var(--text); font-weight: 600; font-size: 1.02rem; }
+.clock.warn .ctime { color: var(--warn); }
+.gear { display: inline-grid; place-items: center; font-size: 1.15rem; text-decoration: none !important; }
+.gear.active { color: var(--text); background: var(--surface2); }
+@media (max-width: 760px) { .clock .cdate { display: none; } }
+
+/* ---------- Hintergrundbild ---------- */
+body.has-bg {
+  background-color: var(--bg);
+  background-image: linear-gradient(rgba(0, 0, 0, var(--bg-dim, .25)), rgba(0, 0, 0, var(--bg-dim, .25))), var(--bg-image);
+  background-size: cover; background-position: center; background-attachment: fixed;
+}
+/* Texte, die direkt auf dem Bild stehen, bekommen eine halbdurchsichtige Unterlage */
+.has-bg main > h1, .has-bg .hint, .has-bg .crumbs, .has-bg footer, .has-bg main > .empty, .has-bg main > p.muted {
+  background: color-mix(in srgb, var(--surface) 88%, transparent); border-radius: 8px;
+  padding: .3rem .7rem; width: fit-content; max-width: 100%;
+}
+.has-bg footer { margin: 0 auto 1rem; }
+.has-bg .toolbar.sticky { background: color-mix(in srgb, var(--surface) 92%, transparent); padding: .5rem; border-radius: 10px; }
+
+/* ---------- Einstellungen ---------- */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.2rem; margin-bottom: 1rem; max-width: 900px; }
+.card.narrow { max-width: 420px; }
+.card h2 { margin: 0 0 .8rem; }
+.field { display: flex; flex-direction: column; gap: .25rem; font-size: .9rem; margin: .6rem 0; }
+.row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: flex-end; }
+.row .grow { flex: 1 1 280px; margin: 0; }
+.err { color: var(--bad); background: var(--bad-bg); padding: .45rem .7rem; border-radius: 7px; font-size: .9rem; }
+.bgrow { display: flex; flex-wrap: wrap; gap: 1.2rem; }
+.bgpreview { width: 320px; max-width: 100%; aspect-ratio: 16 / 9; align-self: flex-start; border-radius: 8px; border: 1px solid var(--line);
+  background-size: cover; background-position: center; display: grid; place-items: center; color: var(--muted); }
+.bgpreview.none { background: repeating-linear-gradient(45deg, var(--surface2), var(--surface2) 10px, var(--surface) 10px, var(--surface) 20px); }
+.bgctl { flex: 1 1 300px; }
+.bgctl input[type=range] { width: 100%; max-width: 360px; }
+label.btn { cursor: pointer; }
 main { flex: 1; width: 100%; max-width: 1500px; margin: 0 auto; padding: 1rem; }
 footer { text-align: center; color: var(--muted); font-size: .75rem; padding: 1rem; }
 

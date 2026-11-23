@@ -16,6 +16,12 @@ Kleine Startseite für das Team, läuft in einem LXC-Container (Debian 13):
   `kunde1:8443`, Präfix `fw-` → `fw-kunde1`). Ändert man die Vorlage später (z. B. http → https),
   ändern sich alle Links der Gruppe mit. Eine vollständige Adresse (`https://…`) bleibt auch in
   Vorlagen-Gruppen möglich und wird nicht verändert.
+- **Datum und Uhrzeit** in der Kopfleiste, vom NTP-Server: Die Startseite fragt alle 15 Minuten den
+  eingestellten NTP-Server ab (Standard `de.pool.ntp.org`, UDP 123 ausgehend nötig); der Browser
+  rechnet die Abweichung der eigenen PC-Uhr heraus. Tooltip der Uhr: Server, Stratum, letzte Abfrage,
+  Abweichung des PCs. Ist der NTP-Server nicht erreichbar, wird die Zeit gelb und die Server-Uhr gilt.
+- **Einstellungen** (⚙ oben rechts, nur mit Bearbeiten-Passwort): Hintergrundbild hochladen
+  (JPG/PNG/WebP, max. 15 MB, gilt für alle Seiten) oder entfernen, Abdunkeln 0–80 %, NTP-Server.
 - **Eigene Anordnung**: Jeder kann sich die Gruppen ohne Anmeldung am Griff ⠿ selbst anordnen.
   Die Reihenfolge wird im Cookie `startseite_layout` gespeichert (10 Jahre, nur dieser Browser);
   „Standard-Anordnung“ verwirft sie. Neu angelegte Gruppen erscheinen hinten. Im Bearbeiten-Modus
@@ -53,6 +59,8 @@ Kollegen ──SMB 445──▶ smbd ──▶ /srv/nmap  ◀── nur lesend �
 | `/opt/startseite` | Programm |
 | `/var/lib/startseite/startseite.db` | Links und Gruppen |
 | `/var/lib/startseite/secrets.json` | Passwort-Hash (scrypt), Sitzungsschlüssel |
+| `/var/lib/startseite/settings.json` | Einstellungen (NTP-Server, Hintergrundbild, Abdunkeln) |
+| `/var/lib/startseite/background-*.jpg/png/webp` | Hintergrundbild |
 | `/srv/nmap` | SMB-Freigabe `nmap` mit den Scans |
 | `/etc/startseite/tls/` | selbstsigniertes Zertifikat für die 443-Umleitung |
 

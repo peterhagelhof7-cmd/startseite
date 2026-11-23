@@ -11,6 +11,7 @@ import sys
 import threading
 import time
 import zlib
+from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -24,6 +25,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from . import VERSION
 from .nmapxml import NmapError
 from .scans import ScanRoot, diff, same_options
+from .settings import BG_MAX, NtpClock, Settings, SettingsError
 from .store import Store, StoreError
 
 HERE = Path(__file__).resolve().parent
@@ -81,8 +83,16 @@ def check_pw(pw: str, stored: str) -> bool:
 # ---------------------------------------------------------------- App
 store = Store(DATA_DIR / "startseite.db")
 scans = ScanRoot(SCAN_DIR)
+settings = Settings(DATA_DIR)
+clock = NtpClock(settings)
 
-app = FastAPI(title="startseite", docs_url=None, redoc_url=None, openapi_url=None)
+@asynccontextmanager
+async def lifespan(_app):
+    clock.start()          # NTP-Abfrage im Hintergrund
+    yield
+
+
+app = FastAPI(title="startseite", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 app.add_middleware(SessionMiddleware, secret_key=ensure_secrets()["session_key"], session_cookie="startseite",
                    max_age=SESSION_HOURS * 3600, same_site="strict", https_only=False)
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
@@ -117,6 +127,7 @@ tpl.env.globals.update(version=VERSION, smb_share=SMB_SHARE)
 
 def render(request: Request, name: str, ctx: dict, status: int = 200):
     ctx.setdefault("editing", is_editor(request))
+    ctx.setdefault("site", settings.get())
     return tpl.TemplateResponse(request, name, ctx, status_code=status)
 
 
@@ -363,6 +374,68 @@ def page_diff(request: Request, a: str, b: str):
     return render(request, "nmap_diff.html", {"nav": "nmap", "a": {"rel": scans.rel(pa), "name": pa.name, "idx": ia},
                                               "b": {"rel": scans.rel(pb), "name": pb.name, "idx": ib},
                                               "d": diff(ia, ib), "same_opts": same_options(ia["args"], ib["args"])})
+
+
+# ---------------------------------------------------------------- Uhrzeit (NTP)
+@app.get("/api/time")
+def api_time():
+    st = clock.state
+    return JSONResponse({
+        "now": round(clock.now() * 1000),           # NTP-korrigierte Zeit in ms
+        "ntp_ok": st["ok"], "server": st["server"], "address": st["address"], "stratum": st["stratum"],
+        "last": round(st["last"] * 1000) if st["last"] else None, "error": st["error"],
+        "system_offset": round(st["offset"], 4) if st["ok"] else None,
+    }, headers={"Cache-Control": "no-store"})
+
+
+# ---------------------------------------------------------------- Einstellungen
+@app.get("/einstellungen", response_class=HTMLResponse)
+def page_settings(request: Request):
+    return render(request, "settings.html", {"nav": "settings", "ntp": clock.state, "bg_max_mb": BG_MAX // 1048576,
+                                             "has_pw": bool(load_secrets().get("password"))})
+
+
+@app.put("/api/settings")
+def api_settings(request: Request, body: dict = Body(...)):
+    require_editor(request)
+    kw = {k: body[k] for k in ("ntp_server", "bg_dim") if k in body}
+    old = settings.get()["ntp_server"]
+    try:
+        d = settings.update(**kw)
+    except SettingsError as e:
+        raise HTTPException(400, str(e)) from None
+    if d["ntp_server"] != old:
+        clock.sync_once()                             # gleich pruefen, damit die Seite das Ergebnis zeigt
+    return {"ok": True, "ntp": clock.state}
+
+
+@app.put("/api/background")
+async def api_background_set(request: Request):
+    require_editor(request)
+    if int(request.headers.get("content-length") or 0) > BG_MAX:
+        raise HTTPException(413, f"Bild zu groß (max. {BG_MAX // 1048576} MB)")
+    data = await request.body()
+    try:
+        settings.set_background(data)
+    except SettingsError as e:
+        raise HTTPException(400, str(e)) from None
+    return {"ok": True}
+
+
+@app.delete("/api/background")
+def api_background_delete(request: Request):
+    require_editor(request)
+    settings.remove_background()
+    return {"ok": True}
+
+
+@app.get("/hintergrund")
+def background_image():
+    bg = settings.background_path()
+    if bg is None:
+        raise HTTPException(404, "Kein Hintergrundbild")
+    # URL enthaelt ?v=<Version>, daher lange cachebar
+    return FileResponse(bg[0], media_type=bg[1], headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
 @app.get("/healthz")

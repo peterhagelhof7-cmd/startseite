@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Einstellungen – Startseite{% endblock %}
+{% block topright %}{% if editing %}<button class="btn primary" type="button" id="btn-logout">Fertig</button>{% endif %}{% endblock %}
+{% block content %}
+<h1>Einstellungen</h1>
+
+{% if not editing %}
+<section class="card narrow">
+  {% if has_pw %}
+  <form id="login-form">
+    <p>Einstellungen ändern geht nur mit dem Bearbeiten-Passwort.</p>
+    <label class="field">Passwort <input type="password" name="password" autocomplete="current-password" required autofocus></label>
+    <p class="err" hidden></p>
+    <button class="btn primary">Anmelden</button>
+  </form>
+  {% else %}
+  <p>Es ist noch kein Bearbeiten-Passwort gesetzt. Auf dem Server einmalig ausführen: <code>startseite-passwort</code></p>
+  {% endif %}
+</section>
+{% else %}
+
+<section class="card">
+  <h2>Hintergrundbild</h2>
+  <div class="bgrow">
+    <div class="bgpreview {% if not site.bg_file %}none{% endif %}" id="bg-preview"
+         {% if site.bg_file %}style="background-image: linear-gradient(rgba(0,0,0,{{ site.bg_dim / 100 }}), rgba(0,0,0,{{ site.bg_dim / 100 }})), url('/hintergrund?v={{ site.bg_ver }}')"{% endif %}>
+      {% if not site.bg_file %}kein Bild{% endif %}
+    </div>
+    <div class="bgctl">
+      <p class="small muted">JPG, PNG oder WebP, höchstens {{ bg_max_mb }} MB. Das Bild füllt den Hintergrund aller Seiten
+        (zugeschnitten auf die Fenstergröße). Querformat ab ca. 1920 × 1080 sieht am besten aus.</p>
+      <div class="row">
+        <label class="btn primary" for="bg-file">Bild hochladen …</label>
+        <input id="bg-file" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+        {% if site.bg_file %}<button class="btn" type="button" id="bg-remove">Bild entfernen</button>{% endif %}
+      </div>
+      <label class="field">Abdunkeln: <b id="dim-val">{{ site.bg_dim }} %</b>
+        <input type="range" id="bg-dim" min="0" max="80" step="5" value="{{ site.bg_dim }}">
+      </label>
+      <p class="small muted">Dunkelt das Bild ab, damit Texte darüber gut lesbar bleiben.</p>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Uhrzeit</h2>
+  <form id="ntp-form" class="row">
+    <label class="field grow">NTP-Server <input name="ntp_server" value="{{ site.ntp_server }}" required spellcheck="false" autocomplete="off"
+      placeholder="z. B. de.pool.ntp.org, ptbtime1.ptb.de oder eigener Zeitserver"></label>
+    <button class="btn primary">Speichern und prüfen</button>
+  </form>
+  <p class="err" id="ntp-err" hidden></p>
+  <p id="ntp-status" class="small">
+    {% if ntp.ok %}
+    <span class="badge good">synchron</span> {{ ntp.server }} ({{ ntp.address }}), Stratum {{ ntp.stratum }},
+    Abweichung der Server-Uhr {{ '%+.3f'|format(ntp.offset) }} s, zuletzt abgefragt {{ ntp.last|dt('%H:%M:%S') }}
+    {% else %}
+    <span class="badge bad">nicht erreichbar</span> {{ ntp.server }}: {{ ntp.error }} – angezeigt wird die Uhrzeit des Servers
+    {% endif %}
+  </p>
+  <p class="small muted">Die Startseite fragt den NTP-Server alle 15 Minuten ab. Die Uhr in der Kopfleiste zeigt diese Zeit an –
+    auch wenn die Uhr des eigenen PCs falsch geht (die Abweichung steht im Tooltip der Uhr).</p>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="/static/settings.js?v={{ version }}"></script>{% endblock %}

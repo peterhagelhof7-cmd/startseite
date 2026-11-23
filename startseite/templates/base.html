@@ -7,7 +7,8 @@
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/static/style.css?v={{ version }}">
 </head>
-<body class="{% if editing %}editing {% endif %}{% block bodyclass %}{% endblock %}">
+<body class="{% if editing %}editing {% endif %}{% if site.bg_file %}has-bg {% endif %}{% block bodyclass %}{% endblock %}"
+  {% if site.bg_file %}style="--bg-image: url('/hintergrund?v={{ site.bg_ver }}'); --bg-dim: {{ site.bg_dim / 100 }}"{% endif %}>
 <header class="top">
   <a class="brand" href="/"><img src="/static/favicon.svg" alt="" width="22" height="22">Startseite</a>
   <nav>
@@ -15,13 +16,18 @@
     <a href="/nmap/" {% if nav == 'nmap' %}class="active"{% endif %}>nmap-Scans</a>
     <a href="/nmap-suche" {% if nav == 'search' %}class="active"{% endif %}>Suche</a>
   </nav>
-  <div class="top-right">{% block topright %}{% endblock %}</div>
+  <div class="top-right">
+    <span id="clock" class="clock" title="Uhrzeit wird geladen …"><span class="cdate"></span> <b class="ctime">--:--:--</b></span>
+    {% block topright %}{% endblock %}
+    <a class="icon gear {% if nav == 'settings' %}active{% endif %}" href="/einstellungen" title="Einstellungen">⚙</a>
+  </div>
 </header>
 <main>
 {% block content %}{% endblock %}
 </main>
 <footer>startseite {{ version }}</footer>
 <div id="toast" role="status" aria-live="polite"></div>
+<script src="/static/clock.js?v={{ version }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
