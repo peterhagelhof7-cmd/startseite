@@ -31,13 +31,14 @@
 
 <div id="groups" class="groups">
 {% for g in groups %}
-  <section class="group" data-id="{{ g.id }}" data-name="{{ g.name }}"
+  <section class="group{% if g.color %} gc gc-{{ g.color }}{% endif %}" data-id="{{ g.id }}" data-name="{{ g.name }}" data-color="{{ g.color }}"
            data-scheme="{{ g.scheme }}" data-prefix="{{ g.prefix }}" data-suffix="{{ g.suffix }}">
     <h2>
       <span class="grip" title="{{ 'Gruppe verschieben (Standard-Reihenfolge für alle)' if editing else 'Gruppe verschieben – deine eigene Anordnung, wird in diesem Browser gespeichert' }}">⠿</span>
       <span class="gname" {% if g.template %}title="Vorlage: {{ g.template }}"{% endif %}>{{ g.name }}</span>
       <span class="count">{{ g.links|length }}</span>
       <span class="tools">
+        <button class="icon colorbtn" type="button" data-act="pick-color" title="Farbe markieren – nur für dich, wird in diesem Browser gespeichert" aria-haspopup="true">●</button>
         {% if g.links %}<button class="icon" type="button" data-act="open-all" title="Alle Links dieser Gruppe in neuen Tabs öffnen">⧉</button>{% endif %}
         {% if editing %}
         <button class="icon" type="button" data-act="add-link" data-group="{{ g.id }}" title="Link hinzufügen">+</button>
@@ -68,6 +69,14 @@
 {% endfor %}
 </div>
 <p id="nomatch" class="empty" hidden>Kein Link passt zum Filter.</p>
+
+<div id="color-pop" class="colorpop" role="menu" hidden>
+  <div class="cp-title">Farbe (nur für dich)</div>
+  <div class="cp-swatches">
+    {% for c in colors %}<button type="button" class="sw gc-{{ loop.index }}" data-color="{{ loop.index }}" title="{{ c }}" aria-label="{{ c }}" role="menuitem"></button>{% endfor %}
+    <button type="button" class="sw none" data-color="0" title="keine Farbe" aria-label="keine Farbe" role="menuitem">✕</button>
+  </div>
+</div>
 
 <dialog id="dlg-login" class="dlg">
   <form method="dialog">

@@ -206,14 +206,30 @@ def _decorate(groups):
 LAYOUT_COOKIE = "startseite_layout"   # persoenliche Gruppen-Reihenfolge: "3.1.2" (Gruppen-IDs)
 
 
+COLOR_COOKIE = "startseite_colors"   # persoenliche Gruppenfarben: "3-2.7-5" (Gruppen-ID - Paletten-Nr.)
+COLORS = ["rot", "orange", "gelb", "grün", "türkis", "blau", "violett", "pink", "grau"]   # Nr. 1..9
+
+
 def _personal_order(request: Request) -> list[int]:
     raw = request.cookies.get(LAYOUT_COOKIE, "")
     return [int(x) for x in raw.split(".") if x.isdigit()][:500]
 
 
+def _personal_colors(request: Request) -> dict[int, int]:
+    out = {}
+    for part in request.cookies.get(COLOR_COOKIE, "").split(".")[:500]:
+        gid, _, c = part.partition("-")
+        if gid.isdigit() and c.isdigit() and 1 <= int(c) <= len(COLORS):
+            out[int(gid)] = int(c)
+    return out
+
+
 @app.get("/", response_class=HTMLResponse)
 def page_index(request: Request):
     groups = _decorate(store.all())
+    colors = _personal_colors(request)
+    for g in groups:
+        g["color"] = colors.get(g["id"], 0)
     editing = is_editor(request)
     order = _personal_order(request)
     personal = bool(order) and not editing        # im Bearbeiten-Modus gilt die Standard-Reihenfolge
@@ -222,7 +238,7 @@ def page_index(request: Request):
         # bekannte Gruppen in eigener Reihenfolge, neue Gruppen hinten in Standard-Reihenfolge
         groups.sort(key=lambda g: (0, rank[g["id"]]) if g["id"] in rank else (1, 0))
     return render(request, "index.html", {"nav": "links", "groups": groups, "editing": editing,
-                                          "personal": personal,
+                                          "personal": personal, "colors": COLORS,
                                           "has_pw": bool(load_secrets().get("password"))})
 
 

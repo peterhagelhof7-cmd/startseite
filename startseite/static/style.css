@@ -153,6 +153,38 @@ input:focus, select:focus, .btn:focus-visible, .icon:focus-visible { outline: 2p
 body:not(.editing) .group h2 .grip { opacity: 0; transition: opacity .15s; }
 body:not(.editing) .group:hover h2 .grip, body:not(.editing) .group h2 .grip:focus { opacity: .7; }
 @media (hover: none) { body:not(.editing) .group h2 .grip { opacity: .5; } }
+
+/* ---------- Farbmarkierung je Gruppe (persoenlich) ---------- */
+.gc-1 { --gc: #d64545; } .gc-2 { --gc: #e8710a; } .gc-3 { --gc: #b98d00; }
+.gc-4 { --gc: #2da44e; } .gc-5 { --gc: #0f9a9a; } .gc-6 { --gc: #2f6feb; }
+.gc-7 { --gc: #8250df; } .gc-8 { --gc: #d63384; } .gc-9 { --gc: #6e7781; }
+@media (prefers-color-scheme: dark) {
+  .gc-1 { --gc: #ff7b72; } .gc-2 { --gc: #ffa657; } .gc-3 { --gc: #e3b341; }
+  .gc-4 { --gc: #56d364; } .gc-5 { --gc: #39c5cf; } .gc-6 { --gc: #58a6ff; }
+  .gc-7 { --gc: #bc8cff; } .gc-8 { --gc: #f778ba; } .gc-9 { --gc: #8b949e; }
+}
+.group.gc {
+  background: color-mix(in srgb, var(--gc) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--gc) 50%, var(--line));
+  box-shadow: inset 4px 0 0 var(--gc), var(--shadow);
+}
+.group.gc h2 { color: var(--gc); }
+.group.gc .colorbtn { color: var(--gc); opacity: 1; }
+.colorbtn { font-size: .85rem; }
+body .group:not(.gc) h2 .colorbtn { opacity: 0; transition: opacity .15s; }
+body .group:not(.gc):hover h2 .colorbtn, body .group h2 .colorbtn:focus { opacity: .7; }
+@media (hover: none) { body .group:not(.gc) h2 .colorbtn { opacity: .5; } }
+.colorpop {
+  position: absolute; z-index: 30; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; box-shadow: 0 8px 28px rgba(0, 0, 0, .22); padding: .5rem .6rem .6rem;
+}
+.cp-title { font-size: .75rem; color: var(--muted); margin-bottom: .4rem; }
+.cp-swatches { display: grid; grid-template-columns: repeat(5, 1.7rem); gap: .4rem; }
+.sw { width: 1.7rem; height: 1.7rem; border-radius: 50%; border: 2px solid var(--surface); background: var(--gc);
+  cursor: pointer; box-shadow: 0 0 0 1px var(--line); padding: 0; font: inherit; font-size: .75rem; color: var(--muted); }
+.sw.none { background: var(--surface2); }
+.sw:hover { transform: scale(1.12); }
+.sw.current, .sw:focus-visible { box-shadow: 0 0 0 2px var(--text); outline: none; }
 .editing .links { min-height: 2.6rem; border: 1px dashed transparent; border-radius: 8px; }
 .editing .links:empty { border-color: var(--line); }
 .dragging { opacity: .4; }

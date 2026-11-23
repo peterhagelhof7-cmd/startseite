@@ -221,11 +221,50 @@
       }
     },
     import: () => $("#import-file").click(),
+    "pick-color": (btn) => {
+      const pop = $("#color-pop"), g = btn.closest(".group");
+      if (!pop.hidden && pop._group === g) { closeColorPop(); return; }
+      pop._group = g;
+      pop.hidden = false;
+      $$(".sw", pop).forEach((s) => s.classList.toggle("current", s.dataset.color === (g.dataset.color || "0")));
+      const r = btn.getBoundingClientRect(), pw = pop.offsetWidth;
+      pop.style.top = `${r.bottom + window.scrollY + 4}px`;
+      pop.style.left = `${Math.max(8, Math.min(r.right + window.scrollX - pw, window.scrollX + document.documentElement.clientWidth - pw - 8))}px`;
+      $(".sw.current", pop)?.focus();
+    },
     "reset-layout": () => {
       document.cookie = LAYOUT_COOKIE + "=; Max-Age=0; Path=/; SameSite=Lax";
       location.reload();
     },
   };
+
+  // ------------------------------------------------ Farbmarkierung je Gruppe (persoenlich, Cookie)
+  const COLOR_COOKIE = "startseite_colors";
+  function closeColorPop() {
+    const pop = $("#color-pop");
+    if (pop) { pop.hidden = true; pop._group = null; }
+  }
+  function saveColors() {
+    const v = $$(".group").filter((g) => +g.dataset.color > 0).map((g) => `${g.dataset.id}-${g.dataset.color}`).join(".");
+    document.cookie = v ? `${COLOR_COOKIE}=${v}; Max-Age=315360000; Path=/; SameSite=Lax`
+                        : `${COLOR_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax`;
+  }
+  const pop = $("#color-pop");
+  if (pop) pop.addEventListener("click", (e) => {
+    const sw = e.target.closest(".sw");
+    if (!sw || !pop._group) return;
+    const g = pop._group, c = sw.dataset.color;
+    g.className = g.className.replace(/\s*\bgc(-\d+)?\b/g, "");
+    if (c !== "0") g.classList.add("gc", "gc-" + c);
+    g.dataset.color = c;
+    saveColors();
+    closeColorPop();
+  });
+  document.addEventListener("click", (e) => {
+    if (pop && !pop.hidden && !e.target.closest("#color-pop, [data-act=pick-color]")) closeColorPop();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeColorPop(); });
+  window.addEventListener("resize", closeColorPop);
 
   document.addEventListener("click", (e) => {
     const close = e.target.closest("[data-close]");

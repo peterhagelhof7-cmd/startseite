@@ -21,7 +21,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/peterhagelhof7-cmd/start
 - **Lesen für alle, Bearbeiten mit Passwort** – anlegen, umbenennen, löschen, Drag & Drop
 - **Adress-Vorlagen je Gruppe** (http/https + Präfix/Suffix): `kunde1` → `https://kunde1.dyndns.org`
 - **Alle Links einer Gruppe öffnen** mit einem Klick
-- **Eigene Gruppen-Anordnung** je Besucher, ohne Anmeldung (Cookie)
+- **Eigene Gruppen-Anordnung** und **Farbmarkierung je Gruppe** – persönlich je Besucher, ohne Anmeldung (Cookie)
 - Schnellfilter (`/`), Export/Import als JSON
 
 **nmap-Scans**
@@ -65,6 +65,10 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/peterhagelhof7-cmd/start
   Die Reihenfolge wird im Cookie `startseite_layout` gespeichert (10 Jahre, nur dieser Browser);
   „Standard-Anordnung“ verwirft sie. Neu angelegte Gruppen erscheinen hinten. Im Bearbeiten-Modus
   wird die Standard-Reihenfolge für alle geändert.
+- **Farbmarkierung**: Über den Punkt ● im Kopf einer Gruppe wählt jeder für sich eine von 9 Farben
+  (rot, orange, gelb, grün, türkis, blau, violett, pink, grau) oder „keine“. Die Gruppe bekommt
+  einen farbigen Rand und eine leichte Tönung (passend für hellen und dunklen Modus). Gespeichert
+  im Cookie `startseite_colors` (10 Jahre, nur dieser Browser) – andere sehen ihre eigenen Farben.
 - **nmap-Scans**: Kollegen legen über die SMB-Freigabe `\\<container>\nmap` beliebige Ordner an
   und speichern dort nmap-Ergebnisse als XML (`nmap -oX datei.xml …`). Die Seite zeigt die
   Ordner als Baum und jeden Scan aufbereitet an:
