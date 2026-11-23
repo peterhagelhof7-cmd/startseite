@@ -175,7 +175,8 @@ trap 'on_err $LINENO' ERR
 
 msg "Debian-13-Vorlage suchen"
 pveam update >/dev/null 2>&1 || true
-TPL=$(pveam available --section system | awk '{print $2}' | grep '^debian-13-standard' | sort -V | tail -1)
+ARCH=$(dpkg --print-architecture 2>/dev/null || echo amd64)
+TPL=$(pveam available --section system | awk '{print $2}' | grep "^debian-13-standard_.*_${ARCH}\." | sort -V | tail -1)
 [ -n "$TPL" ] || fail "Keine debian-13-standard-Vorlage gefunden (pveam available)."
 if pveam list "$TSTORE" | grep -q "$TPL"; then ok "Vorlage vorhanden: $TPL"
 else msg "Vorlage herunterladen: $TPL"; pveam download "$TSTORE" "$TPL" >/dev/null; ok "Vorlage geladen"; fi
