@@ -21,6 +21,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/peterhagelhof7-cmd/start
 - **Lesen für alle, Bearbeiten mit Passwort** – anlegen, umbenennen, löschen, Drag & Drop
 - **Adress-Vorlagen je Gruppe** (http/https + Präfix/Suffix): `kunde1` → `https://kunde1.dyndns.org`
 - **Alle Links einer Gruppe öffnen** mit einem Klick
+- **Eigene Links** für Besucher ohne Bearbeiten-Recht – nur für sie sichtbar, im Browser gespeichert, mit Sichern/Laden als Datei
 - **Eigene Gruppen-Anordnung** und **Farbmarkierung je Gruppe** – persönlich je Besucher, ohne Anmeldung (Cookie)
 - Schnellfilter (`/`), Export/Import als JSON
 
@@ -65,6 +66,14 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/peterhagelhof7-cmd/start
   Die Reihenfolge wird im Cookie `startseite_layout` gespeichert (10 Jahre, nur dieser Browser);
   „Standard-Anordnung“ verwirft sie. Neu angelegte Gruppen erscheinen hinten. Im Bearbeiten-Modus
   wird die Standard-Reihenfolge für alle geändert.
+- **Eigene Links**: Wer kein Bearbeiten-Passwort hat, legt sich über „+ Eigener Link“ Links nur für
+  sich an. Sie erscheinen in der Gruppe „Eigene Links“ (gestrichelter Rand, standardmäßig vorne) und
+  lassen sich bearbeiten, löschen, per Griff sortieren, farbig markieren und mit „alle öffnen“ starten;
+  die Gruppe kann wie alle anderen persönlich angeordnet werden. Gespeichert in den Cookies
+  `startseite_my0` … `startseite_my3` (bis ca. 150 Links, 10 Jahre) – also **nur in diesem Browser**
+  auf diesem PC. Mit ⇩ sichert man sie als Datei, mit ⇧ lädt man sie in einen anderen Browser
+  (vorhandene Adressen werden übersprungen; auch ein Export der gemeinsamen Links kann geladen werden).
+  Andere Besucher sehen die eigenen Links nicht; auf dem Server wird nichts davon gespeichert.
 - **Farbmarkierung**: Über den Punkt ● im Kopf einer Gruppe wählt jeder für sich eine von 9 Farben
   (rot, orange, gelb, grün, türkis, blau, violett, pink, grau) oder „keine“. Die Gruppe bekommt
   einen farbigen Rand und eine leichte Tönung (passend für hellen und dunklen Modus). Gespeichert

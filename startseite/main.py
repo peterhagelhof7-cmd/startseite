@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -26,7 +28,7 @@ from . import VERSION
 from .nmapxml import NmapError
 from .scans import ScanRoot, diff, same_options
 from .settings import BG_MAX, NtpClock, Settings, SettingsError
-from .store import Store, StoreError
+from .store import Store, StoreError, normalize_url
 
 HERE = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("STARTSEITE_DATA_DIR", "data")).resolve()
@@ -215,6 +217,33 @@ def _personal_order(request: Request) -> list[int]:
     return [int(x) for x in raw.split(".") if x.isdigit()][:500]
 
 
+MY_COOKIE = "startseite_my"          # eigene Links: startseite_my0 … my3 = base64url(JSON [[name, url, notiz], …])
+MY_CHUNKS = 4                         # je Cookie max. ~3800 Zeichen; zusammen <= ~15 KB Header
+MY_MAX = 150
+
+
+def _my_links(request: Request) -> list[dict]:
+    raw = "".join(request.cookies.get(f"{MY_COOKIE}{i}", "") for i in range(MY_CHUNKS))
+    if not raw:
+        return []
+    try:
+        data = json.loads(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)).decode("utf-8"))
+    except (ValueError, binascii.Error, UnicodeDecodeError):
+        return []
+    out = []
+    for item in data[:MY_MAX] if isinstance(data, list) else []:
+        if not isinstance(item, list) or len(item) < 2:
+            continue
+        try:
+            url = normalize_url(str(item[1]))
+        except StoreError:
+            continue                                   # z. B. javascript: – wird nie ausgegeben
+        name = str(item[0] or "").strip()[:100] or (urlsplit(url).hostname or url)
+        note = str(item[2] if len(item) > 2 and item[2] else "").strip()[:500]
+        out.append({"id": f"m{len(out)}", "name": name, "url": url, "note": note, "host": ""})
+    return out
+
+
 def _personal_colors(request: Request) -> dict[int, int]:
     out = {}
     for part in request.cookies.get(COLOR_COOKIE, "").split(".")[:500]:
@@ -226,7 +255,13 @@ def _personal_colors(request: Request) -> dict[int, int]:
 
 @app.get("/", response_class=HTMLResponse)
 def page_index(request: Request):
-    groups = _decorate(store.all())
+    groups = store.all()
+    my = _my_links(request)
+    if my:
+        # eigene Links des Besuchers als Gruppe mit der ID 0 (nur im Cookie, nie in der Datenbank)
+        groups.insert(0, {"id": 0, "name": "Eigene Links", "own": True, "links": my,
+                          "scheme": "", "prefix": "", "suffix": "", "template": ""})
+    groups = _decorate(groups)
     colors = _personal_colors(request)
     for g in groups:
         g["color"] = colors.get(g["id"], 0)
@@ -235,8 +270,9 @@ def page_index(request: Request):
     personal = bool(order) and not editing        # im Bearbeiten-Modus gilt die Standard-Reihenfolge
     if personal:
         rank = {gid: i for i, gid in enumerate(order)}
-        # bekannte Gruppen in eigener Reihenfolge, neue Gruppen hinten in Standard-Reihenfolge
-        groups.sort(key=lambda g: (0, rank[g["id"]]) if g["id"] in rank else (1, 0))
+        # bekannte Gruppen in eigener Reihenfolge, neue Gruppen hinten in Standard-Reihenfolge;
+        # "Eigene Links" ohne eigenen Platz in der Anordnung bleiben vorne
+        groups.sort(key=lambda g: (0, rank[g["id"]]) if g["id"] in rank else ((-1, 0) if g.get("own") else (1, 0)))
     return render(request, "index.html", {"nav": "links", "groups": groups, "editing": editing,
                                           "personal": personal, "colors": COLORS,
                                           "has_pw": bool(load_secrets().get("password"))})
@@ -478,7 +514,8 @@ def main():
         return
     import uvicorn
     uvicorn.run(app, host=a.host, port=a.port, proxy_headers=True, forwarded_allow_ips="127.0.0.1",
-                log_level="warning", access_log=False)
+                log_level="warning", access_log=False,
+                h11_max_incomplete_event_size=64 * 1024)   # Platz fuer die Cookies der eigenen Links
 
 
 if __name__ == "__main__":

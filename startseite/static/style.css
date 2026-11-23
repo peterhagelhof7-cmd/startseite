@@ -127,7 +127,11 @@ input:focus, select:focus, .btn:focus-visible, .icon:focus-visible { outline: 2p
 .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; align-items: start; }
 .group { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: .5rem; }
 .group h2 { display: flex; align-items: center; gap: .4rem; margin: .1rem .3rem .4rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-.group h2 .gname { overflow-wrap: anywhere; }
+.group h2 .gname { min-width: 2.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.group h2 .count, .group h2 .grip, .group h2 .tools { flex: none; }
+.group h2 .hover-only { display: none; }
+.group:hover h2 .hover-only, .group:focus-within h2 .hover-only { display: inline-block; }
+@media (hover: none) { .group h2 .hover-only { display: inline-block; } }
 .group h2 .count { font-weight: 400; opacity: .7; }
 .group h2 .tools { margin-left: auto; display: flex; }
 .group .tpl { font-family: var(--mono); font-size: .75rem; color: var(--muted); margin: -.3rem .3rem .4rem; overflow-wrap: anywhere; }
@@ -153,6 +157,13 @@ input:focus, select:focus, .btn:focus-visible, .icon:focus-visible { outline: 2p
 body:not(.editing) .group h2 .grip { opacity: 0; transition: opacity .15s; }
 body:not(.editing) .group:hover h2 .grip, body:not(.editing) .group h2 .grip:focus { opacity: .7; }
 @media (hover: none) { body:not(.editing) .group h2 .grip { opacity: .5; } }
+
+/* ---------- Eigene Links (nur im Browser) ---------- */
+.group.own:not(.gc) { border-style: dashed; }
+.grip-off { display: inline-block; width: .9rem; }
+.group.own .link .tools, .group.own .link .grip { opacity: 0; transition: opacity .15s; }
+.group.own .link:hover .tools, .group.own .link:hover .grip, .group.own .link:focus-within .tools { opacity: 1; }
+@media (hover: none) { .group.own .link .tools, .group.own .link .grip { opacity: .8; } }
 
 /* ---------- Farbmarkierung je Gruppe (persoenlich) ---------- */
 .gc-1 { --gc: #d64545; } .gc-2 { --gc: #e8710a; } .gc-3 { --gc: #b98d00; }

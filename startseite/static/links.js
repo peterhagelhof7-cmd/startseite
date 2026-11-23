@@ -138,8 +138,104 @@
     }, onOk);
   }
 
+  // ------------------------------------------------ Eigene Links (nur in diesem Browser, Cookies startseite_my0..3)
+  const MY_COOKIE = "startseite_my", MY_CHUNKS = 4, MY_CHUNK = 3800, MY_MAX = 150;
+  const ALLOWED = ["http", "https", "ftp", "ftps", "sftp", "ssh", "telnet", "rdp", "vnc", "smb", "file", "mailto", "tel"];
+  const FORBIDDEN = ["javascript", "data", "vbscript", "blob"];
+
+  // gleiche Regeln wie store.normalize_url auf dem Server
+  function normUrl(url) {
+    url = (url || "").trim();
+    if (!url) throw new Error("Adresse fehlt");
+    if (url.length > 2000) throw new Error("Adresse zu lang");
+    if (url.startsWith("\\\\")) url = "file:" + url.replace(/\\/g, "/");
+    const m = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(url);
+    if (m && FORBIDDEN.includes(m[1].toLowerCase())) throw new Error(`Adressen mit „${m[1]}:“ sind nicht erlaubt`);
+    if (!m || (!ALLOWED.includes(m[1].toLowerCase()) && !url.slice(m[0].length).startsWith("//"))) url = "http://" + url;
+    const scheme = url.split(":")[0].toLowerCase();
+    if (!ALLOWED.includes(scheme)) throw new Error(`Adressen mit „${scheme}:“ sind nicht erlaubt`);
+    return url;
+  }
+  function readMyLinks() {
+    return $$(".group.own .link").map((l) => ({ name: l.dataset.name, url: l.dataset.url, note: l.dataset.note }));
+  }
+  function b64url(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = "";
+    bytes.forEach((b) => (bin += String.fromCharCode(b)));
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function saveMyLinks(list) {
+    if (list.length > MY_MAX) throw new Error(`Höchstens ${MY_MAX} eigene Links`);
+    const enc = list.length ? b64url(JSON.stringify(list.map((l) => [l.name, l.url, l.note || ""]))) : "";
+    const parts = enc.match(new RegExp(`.{1,${MY_CHUNK}}`, "g")) || [];
+    if (parts.length > MY_CHUNKS) throw new Error("Zu viele eigene Links für die Speicherung im Browser – bitte einige löschen");
+    for (let i = 0; i < MY_CHUNKS; i++) {
+      document.cookie = i < parts.length
+        ? `${MY_COOKIE}${i}=${parts[i]}; Max-Age=315360000; Path=/; SameSite=Lax`
+        : `${MY_COOKIE}${i}=; Max-Age=0; Path=/; SameSite=Lax`;
+    }
+    // Gegenprobe: Browser kann Cookies verweigern (z. B. gesperrt oder privater Modus mit Limits)
+    if (parts.length && !document.cookie.includes(`${MY_COOKIE}0=`)) {
+      throw new Error("Der Browser speichert keine Cookies für diese Seite – eigene Links gehen so nicht");
+    }
+  }
+  function myDialog(item, onSave) {
+    openDialog("#dlg-mylink", (f) => {
+      if (item) { f.url.value = item.url; f.name.value = item.name; f.note.value = item.note || ""; }
+    }, async (f) => {
+      const url = normUrl(f.url.value);
+      let name = f.name.value.trim();
+      if (!name) { try { name = new URL(url).hostname || url; } catch (_) { name = url; } }
+      onSave({ name: name.slice(0, 100), url, note: f.note.value.trim().slice(0, 200) });
+      location.reload();
+    });
+  }
+  function importMyLinks(data) {
+    // akzeptiert die eigene Sicherung und den Export der gemeinsamen Links
+    let items = [];
+    if (Array.isArray(data?.links)) items = data.links;
+    else if (Array.isArray(data?.groups)) data.groups.forEach((g) => (items = items.concat(g.links || [])));
+    else throw new Error("Unbekanntes Dateiformat");
+    const list = readMyLinks(), have = new Set(list.map((l) => l.url));
+    let added = 0, skipped = 0;
+    items.forEach((it) => {
+      try {
+        const url = normUrl(it.url);
+        if (have.has(url)) { skipped++; return; }
+        list.push({ name: String(it.name || url).slice(0, 100), url, note: String(it.note || "").slice(0, 200) });
+        have.add(url); added++;
+      } catch (_) { skipped++; }
+    });
+    saveMyLinks(list);
+    return { added, skipped };
+  }
+
   // ------------------------------------------------ Aktionen
   const actions = {
+    "my-add": () => myDialog(null, (it) => saveMyLinks(readMyLinks().concat([it]))),
+    "my-edit": (btn) => {
+      const li = btn.closest(".link"), list = readMyLinks(), i = $$(".group.own .link").indexOf(li);
+      myDialog(list[i], (it) => { list[i] = it; saveMyLinks(list); });
+    },
+    "my-delete": (btn) => {
+      const li = btn.closest(".link"), i = $$(".group.own .link").indexOf(li);
+      confirmDialog("Löschen?", `Eigenen Link „${li.dataset.name}“ löschen?`, "Löschen", true, async () => {
+        const list = readMyLinks();
+        list.splice(i, 1);
+        saveMyLinks(list);
+        location.reload();
+      });
+    },
+    "my-export": () => {
+      const blob = new Blob([JSON.stringify({ startseite_eigene_links: 1, links: readMyLinks() }, null, 1)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `eigene-links-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    },
+    "my-import": () => $("#my-import-file").click(),
     login: () => openDialog("#dlg-login", null, async (f) => {
       await api("POST", "/api/login", { password: f.password.value });
       location.reload();
@@ -290,6 +386,19 @@
       toast("Import fehlgeschlagen: " + (x instanceof SyntaxError ? "keine gültige JSON-Datei" : x.message), true);
     }
   });
+  const myImp = $("#my-import-file");
+  if (myImp) myImp.addEventListener("change", async () => {
+    const file = myImp.files[0];
+    myImp.value = "";
+    if (!file) return;
+    try {
+      const r = importMyLinks(JSON.parse(await file.text()));
+      sessionStorage.setItem("startseite-toast", `Eigene Links: ${r.added} neu` + (r.skipped ? `, ${r.skipped} übersprungen` : ""));
+      location.reload();
+    } catch (x) {
+      toast("Laden fehlgeschlagen: " + (x instanceof SyntaxError ? "keine gültige JSON-Datei" : x.message), true);
+    }
+  });
   const pending = sessionStorage.getItem("startseite-toast");
   if (pending) { sessionStorage.removeItem("startseite-toast"); toast(pending); }
 
@@ -305,7 +414,7 @@
     const grip = e.target.closest && e.target.closest(".grip");
     if (!grip) return;
     const el = grip.parentElement.closest(".link, .group");
-    drag = { el, kind: el.classList.contains("link") ? "link" : "group" };
+    drag = { el, kind: el.classList.contains("link") ? "link" : "group", own: !!el.closest(".group.own") };
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", el.dataset.id);
     const r = el.getBoundingClientRect();
@@ -318,6 +427,8 @@
     if (drag.kind === "link") {
       const ul = e.target.closest(".links");
       if (!ul) return;
+      // eigene Links bleiben unter sich, gemeinsame Links kommen nicht in die eigene Gruppe
+      if (!!ul.closest(".group.own") !== (drag.kind === "link" && drag.own)) return;
       e.preventDefault();
       const after = $$(".link:not(.dragging)", ul).find((li) => {
         const r = li.getBoundingClientRect();
@@ -341,7 +452,12 @@
   document.addEventListener("dragend", async () => {
     if (!drag) return;
     drag.el.classList.remove("dragging");
+    const was = drag;
     drag = null;
+    if (was.kind === "link" && was.own) {          // Reihenfolge der eigenen Links -> Cookie
+      try { saveMyLinks(readMyLinks()); } catch (x) { toast(x.message, true); }
+      return;
+    }
     if (!editing) {
       const ids = $$(".group").map((g) => g.dataset.id).join(".");
       document.cookie = `${LAYOUT_COOKIE}=${ids}; Max-Age=315360000; Path=/; SameSite=Lax`;
@@ -354,7 +470,8 @@
       toast("Deine Anordnung ist in diesem Browser gespeichert");
       return;
     }
-    const layout = $$(".group").map((g) => ({ id: +g.dataset.id, links: $$(".link", g).map((l) => +l.dataset.id) }));
+    // Standard-Reihenfolge fuer alle: ohne die eigenen Links (die gibt es nur im Cookie)
+    const layout = $$(".group:not(.own)").map((g) => ({ id: +g.dataset.id, links: $$(".link", g).map((l) => +l.dataset.id) }));
     $$(".group").forEach((g) => ($(".count", g).textContent = $$(".link", g).length));
     try {
       await api("PUT", "/api/order", { groups: layout });

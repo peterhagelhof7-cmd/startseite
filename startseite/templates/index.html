@@ -21,6 +21,8 @@
   {% elif personal %}
   <button class="btn" type="button" data-act="reset-layout" title="Eigene Anordnung der Gruppen verwerfen">Standard-Anordnung</button>
   {% endif %}
+  <button class="btn" type="button" data-act="my-add" title="Link nur für dich anlegen – wird in diesem Browser gespeichert">+ Eigener Link</button>
+  <input id="my-import-file" type="file" accept=".json,application/json" hidden>
 </div>
 
 {% if editing %}<p class="hint">Bearbeiten-Modus: Links und Gruppen am Griff <span class="grip-demo">⠿</span> ziehen, um sie zu sortieren oder in eine andere Gruppe zu verschieben. Die Gruppen-Reihenfolge ist hier die Standard-Anordnung für alle; wer sich die Gruppen selbst angeordnet hat, behält seine eigene.</p>{% endif %}
@@ -31,16 +33,21 @@
 
 <div id="groups" class="groups">
 {% for g in groups %}
-  <section class="group{% if g.color %} gc gc-{{ g.color }}{% endif %}" data-id="{{ g.id }}" data-name="{{ g.name }}" data-color="{{ g.color }}"
+  <section class="group{% if g.own %} own{% endif %}{% if g.color %} gc gc-{{ g.color }}{% endif %}" data-id="{{ g.id }}" data-name="{{ g.name }}" data-color="{{ g.color }}"
            data-scheme="{{ g.scheme }}" data-prefix="{{ g.prefix }}" data-suffix="{{ g.suffix }}">
     <h2>
-      <span class="grip" title="{{ 'Gruppe verschieben (Standard-Reihenfolge für alle)' if editing else 'Gruppe verschieben – deine eigene Anordnung, wird in diesem Browser gespeichert' }}">⠿</span>
-      <span class="gname" {% if g.template %}title="Vorlage: {{ g.template }}"{% endif %}>{{ g.name }}</span>
+      {% if g.own and editing %}<span class="grip-off"></span>{% else %}
+      <span class="grip" title="{{ 'Gruppe verschieben (Standard-Reihenfolge für alle)' if editing else 'Gruppe verschieben – deine eigene Anordnung, wird in diesem Browser gespeichert' }}">⠿</span>{% endif %}
+      <span class="gname" {% if g.template %}title="{{ g.name }} – Vorlage: {{ g.template }}"{% elif g.own %}title="Nur für dich – in diesem Browser gespeichert, andere sehen diese Links nicht"{% else %}title="{{ g.name }}"{% endif %}>{{ g.name }}</span>
       <span class="count">{{ g.links|length }}</span>
       <span class="tools">
         <button class="icon colorbtn" type="button" data-act="pick-color" title="Farbe markieren – nur für dich, wird in diesem Browser gespeichert" aria-haspopup="true">●</button>
         {% if g.links %}<button class="icon" type="button" data-act="open-all" title="Alle Links dieser Gruppe in neuen Tabs öffnen">⧉</button>{% endif %}
-        {% if editing %}
+        {% if g.own %}
+        <button class="icon" type="button" data-act="my-add" title="Eigenen Link hinzufügen">+</button>
+        <button class="icon hover-only" type="button" data-act="my-export" title="Eigene Links als Datei sichern (z. B. für einen anderen Browser)">⇩</button>
+        <button class="icon hover-only" type="button" data-act="my-import" title="Eigene Links aus Datei laden">⇧</button>
+        {% elif editing %}
         <button class="icon" type="button" data-act="add-link" data-group="{{ g.id }}" title="Link hinzufügen">+</button>
         <button class="icon" type="button" data-act="edit-group" title="Gruppe bearbeiten (Name, Adress-Vorlage)">✎</button>
         <button class="icon danger" type="button" data-act="delete-group" title="Gruppe löschen">✕</button>
@@ -51,12 +58,17 @@
     <ul class="links" data-group="{{ g.id }}">
     {% for l in g.links %}
       <li class="link" data-id="{{ l.id }}" data-name="{{ l.name }}" data-url="{{ l.url }}" data-note="{{ l.note }}" data-host="{{ l.host }}">
-        {% if editing %}<span class="grip" title="Link verschieben">⠿</span>{% endif %}
-        <a href="{{ l.url }}" title="{{ l.url }}" target="_blank" rel="noopener noreferrer"{% if editing %} draggable="false"{% endif %}>
+        {% if editing or g.own %}<span class="grip" title="Link verschieben">⠿</span>{% endif %}
+        <a href="{{ l.url }}" title="{{ l.url }}" target="_blank" rel="noopener noreferrer"{% if editing or g.own %} draggable="false"{% endif %}>
           <span class="av" style="--h: {{ l.hue }}">{{ l.initial }}</span>
           <span class="ltext"><span class="lname">{{ l.name }}</span><span class="lhost">{{ l.note or l.domain }}</span></span>
         </a>
-        {% if editing %}
+        {% if g.own %}
+        <span class="tools">
+          <button class="icon" type="button" data-act="my-edit" title="Bearbeiten">✎</button>
+          <button class="icon danger" type="button" data-act="my-delete" title="Löschen">✕</button>
+        </span>
+        {% elif editing %}
         <span class="tools">
           <button class="icon" type="button" data-act="edit-link" title="Bearbeiten">✎</button>
           <button class="icon danger" type="button" data-act="delete-link" title="Löschen">✕</button>
@@ -101,6 +113,18 @@
     <p class="preview" hidden></p>
     <label>Angezeigter Name <small>(leer = aus der Adresse)</small><input name="name" maxlength="100"></label>
     <label>Notiz <small>(optional, steht unter dem Namen)</small><input name="note" maxlength="500"></label>
+    <p class="err" hidden></p>
+    <div class="actions"><button class="btn" type="button" data-close>Abbrechen</button><button class="btn primary" value="ok">Speichern</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg-mylink" class="dlg">
+  <form method="dialog">
+    <h3>Eigener Link</h3>
+    <p class="small muted">Nur für dich – wird in diesem Browser gespeichert (Cookie). Andere sehen ihn nicht.</p>
+    <label>Adresse <input name="url" maxlength="2000" required placeholder="https://… oder router.lan" autocomplete="off" spellcheck="false"></label>
+    <label>Angezeigter Name <small>(leer = aus der Adresse)</small><input name="name" maxlength="100"></label>
+    <label>Notiz <small>(optional)</small><input name="note" maxlength="200"></label>
     <p class="err" hidden></p>
     <div class="actions"><button class="btn" type="button" data-close>Abbrechen</button><button class="btn primary" value="ok">Speichern</button></div>
   </form>
