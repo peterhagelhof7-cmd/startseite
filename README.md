@@ -14,6 +14,8 @@ mit **einem Befehl**.
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/peterhagelhof7-cmd/startseite/main/pve-install.sh)"
 ```
 
+📘 **[Admin-Guide](docs/admin-guide.md)** – Einrichtung, Scans ablegen, Passwörter, Updates, Sicherung, Fehlersuche
+
 ## Features
 
 **Links**
@@ -39,6 +41,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/peterhagelhof7-cmd/start
 - **Automatische Updates**: startseite aus GitHub-Releases, Debian-Sicherheitsupdates
 - **Nur HTTP**, HTTPS wird auf HTTP umgeleitet (Zertifikat selbstsigniert, beim ersten Start erzeugt)
 - Unprivilegierter Container, ~80 MB RAM im Betrieb
+- Fußleiste mit Version (→ Änderungen), GitHub und Lizenz
 
 ## Funktionen im Detail
 
@@ -198,4 +201,5 @@ STARTSEITE_DATA_DIR=./data STARTSEITE_SCAN_DIR=./scans venv/bin/python -m starts
 
 ## Lizenz
 
-GPL-3.0, siehe [LICENSE](LICENSE).
+[GNU General Public License v3.0](LICENSE) (GPL-3.0): nutzen, ändern und weitergeben erlaubt;
+wer eine veränderte Version weitergibt, muss deren Quellcode ebenfalls unter der GPL-3.0 bereitstellen.
