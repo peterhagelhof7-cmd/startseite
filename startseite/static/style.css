@@ -85,6 +85,8 @@ body.has-bg {
 label.btn { cursor: pointer; }
 main { flex: 1; width: 100%; max-width: 1500px; margin: 0 auto; padding: 1rem; }
 footer { text-align: center; color: var(--muted); font-size: .75rem; padding: 1rem; }
+footer a { color: inherit; }
+footer a:hover { color: var(--accent); }
 
 /* ---------- Bedienelemente ---------- */
 .btn {

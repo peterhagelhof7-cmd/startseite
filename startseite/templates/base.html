@@ -25,7 +25,11 @@
 <main>
 {% block content %}{% endblock %}
 </main>
-<footer>startseite {{ version }}</footer>
+<footer>
+  <a href="https://github.com/peterhagelhof7-cmd/startseite/releases/tag/v{{ version }}" target="_blank" rel="noopener noreferrer" title="Änderungen dieser Version">startseite {{ version }}</a>
+  · <a href="https://github.com/peterhagelhof7-cmd/startseite" target="_blank" rel="noopener noreferrer" title="Quellcode, Anleitung und Updates auf GitHub">GitHub</a>
+  · <a href="https://github.com/peterhagelhof7-cmd/startseite/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" title="GNU General Public License v3.0">Lizenz: GPL-3.0</a>
+</footer>
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="/static/clock.js?v={{ version }}"></script>
 {% block scripts %}{% endblock %}
