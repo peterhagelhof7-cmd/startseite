@@ -219,3 +219,24 @@ STARTSEITE_DATA_DIR=./data STARTSEITE_SCAN_DIR=./scans venv/bin/python -m starts
 
 [GNU General Public License v3.0](LICENSE) (GPL-3.0): nutzen, ändern und weitergeben erlaubt;
 wer eine veränderte Version weitergibt, muss deren Quellcode ebenfalls unter der GPL-3.0 bereitstellen.
+
+### Verwendete Software
+
+Das Repo enthält nur den Code der startseite. Die folgenden Programme werden bei der Installation aus den
+Debian-Paketquellen installiert (nicht mitgeliefert) und stehen unter ihren eigenen Lizenzen:
+
+| Software | Zweck | Lizenz |
+|----------|-------|--------|
+| [nmap](https://nmap.org) | automatische Scans (wird aufgerufen, Ausgabe ausgewertet) | [Nmap Public Source License](https://nmap.org/npsl/) |
+| [nginx](https://nginx.org) | Webserver, HTTPS→HTTP-Umleitung | BSD-2-Clause |
+| [Samba](https://www.samba.org) | SMB-Freigabe für die Scans | GPL-3.0 |
+| [FastAPI](https://fastapi.tiangolo.com) | Web-Framework | MIT |
+| [Uvicorn](https://www.uvicorn.org) | Python-Webserver | BSD-3-Clause |
+| [Jinja2](https://jinja.palletsprojects.com), [itsdangerous](https://itsdangerous.palletsprojects.com) | Vorlagen, Sitzungs-Cookies | BSD-3-Clause |
+| [defusedxml](https://github.com/tiran/defusedxml) | sicheres Einlesen der nmap-XML | PSF-2.0 |
+| [OpenSSL](https://www.openssl.org) | selbstsigniertes Zertifikat | Apache-2.0 |
+
+Hinweis zu nmap: Die NPSL zählt Programme, die nmap ausführen und dessen Ergebnisse auswerten, zu den
+abgeleiteten Werken. Für die startseite als Open-Source-Projekt unter GPL-3.0, die nmap nicht mitliefert,
+ist das unproblematisch; wer die startseite zusammen mit nmap in ein proprietäres oder kommerzielles
+Produkt einbauen will, sollte die NPSL prüfen. Die nmap-XML-Dateien selbst werden nur gelesen und angezeigt.
