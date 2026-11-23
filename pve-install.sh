@@ -86,7 +86,8 @@ mapfile -t BRIDGES < <(ip -o link show type bridge | awk -F': ' '{print $2}' | c
 if [ ${#BRIDGES[@]} -eq 1 ]; then BR=${BRIDGES[0]}
 else
     items=(); for b in "${BRIDGES[@]}"; do items+=("$b" "$(ip -4 -o addr show "$b" 2>/dev/null | awk '{print $4}' | head -1)"); done
-    BR=$(wt --menu "Netzwerk-Bridge:" 16 74 6 "${items[@]}") || abort
+    DEFBR=$(ip route show default 2>/dev/null | awk '{for (i=1;i<NF;i++) if ($i=="dev") print $(i+1)}' | grep '^vmbr' | head -1)
+    BR=$(wt --default-item "${DEFBR:-${BRIDGES[0]}}" --menu "Netzwerk-Bridge (vorausgewählt: die mit der Standard-Route des Hosts):" 16 74 6 "${items[@]}") || abort
 fi
 
 VLAN=""
