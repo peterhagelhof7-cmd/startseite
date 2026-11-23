@@ -1,0 +1,11 @@
+[Unit]
+Description=startseite - jede Minute faellige Scans pruefen
+
+[Timer]
+OnBootSec=2min
+OnActiveSec=1min
+OnUnitInactiveSec=1min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

@@ -29,12 +29,13 @@ done
 echo "== Pakete"
 apt-get -q update >/dev/null
 apt-get -y -q install --no-install-recommends python3 python3-fastapi python3-uvicorn python3-jinja2 \
-    python3-itsdangerous python3-defusedxml nginx samba openssl curl >/dev/null
+    python3-itsdangerous python3-defusedxml nginx samba openssl curl nmap iproute2 >/dev/null
 
 echo "== Benutzer und Verzeichnisse"
 id startseite >/dev/null 2>&1 || useradd --system --home-dir /var/lib/startseite --shell /usr/sbin/nologin startseite
 install -d -o startseite -g startseite -m 0750 /var/lib/startseite
 install -d -o startseite -g startseite -m 2775 /srv/nmap
+install -d -o startseite -g startseite -m 0750 /var/lib/startseite/scan-requests
 
 echo "== Programm nach /opt/startseite"
 rm -rf /opt/startseite.new
@@ -46,6 +47,10 @@ rm -rf /opt/startseite.old
 mv /opt/startseite.new /opt/startseite
 chown -R root:root /opt/startseite
 install -m 0644 "$SRC/deploy/startseite.service" /etc/systemd/system/startseite.service
+# automatische Scans + Housekeeper (Timer jede Minute, Path-Unit fuer "Jetzt scannen")
+for u in startseite-scan.service startseite-scan.timer startseite-scan.path; do
+    install -m 0644 "$SRC/deploy/$u" "/etc/systemd/system/$u"
+done
 
 # Helfer: Bearbeiten-Passwort spaeter aendern
 cat > /usr/local/sbin/startseite-passwort <<'EOF'
@@ -115,12 +120,13 @@ esac
 
 echo "== Dienste starten"
 systemctl daemon-reload
-systemctl enable startseite nginx smbd >/dev/null 2>&1
+systemctl enable startseite nginx smbd startseite-scan.timer startseite-scan.path >/dev/null 2>&1
 systemctl restart startseite
 systemctl restart nginx
 systemctl restart smbd
+systemctl restart startseite-scan.timer startseite-scan.path
 sleep 2
-for s in startseite nginx smbd; do
+for s in startseite nginx smbd startseite-scan.timer startseite-scan.path; do
     printf '%-11s %s\n' "$s" "$(systemctl is-active $s)"
 done
 curl -fsS -o /dev/null -w 'HTTP  %{http_code}\n' http://127.0.0.1/ 2>/dev/null || echo "HTTP  nicht erreichbar"

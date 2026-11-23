@@ -24,7 +24,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import VERSION
+from . import VERSION, scanjobs
 from .nmapxml import NmapError
 from .scans import ScanRoot, diff, same_options
 from .settings import BG_MAX, NtpClock, Settings, SettingsError
@@ -441,10 +441,103 @@ def api_time():
 
 
 # ---------------------------------------------------------------- Einstellungen
+SCAN_STATE = DATA_DIR / "scan-state.json"
+SCAN_REQ = DATA_DIR / "scan-requests"
+
+
+def scan_state() -> dict:
+    """Zustand der automatischen Scans (schreibt der Scan-Dienst) fuer die Anzeige aufbereiten."""
+    try:
+        st = json.loads(SCAN_STATE.read_text("utf-8"))
+    except (FileNotFoundError, ValueError):
+        st = {}
+    run = st.get("running")
+    if run and not Path(f"/proc/{run.get('pid', 0)}").exists() and os.name != "nt":
+        run = None                                      # Dienst abgestuerzt
+    try:
+        pending = sorted(p.name for p in SCAN_REQ.iterdir())
+    except FileNotFoundError:
+        pending = []
+    jobs = []
+    for j in settings.get()["scan_jobs"]:
+        js = st.get("jobs", {}).get(j["id"], {})
+        jobs.append(j | {"state": js, "running": bool(run and run.get("id") == j["id"]),
+                         "pending": j["id"] in pending, "next": scanjobs.next_run(j, js),
+                         "profile_label": scanjobs.PROFILES[j["profile"]][0]})
+    return {"jobs": jobs, "running": run, "housekeep": st.get("housekeep", {}),
+            "housekeep_pending": "housekeep" in pending, "local_networks": scanjobs.local_networks()}
+
+
+def _request_scan(name: str):
+    SCAN_REQ.mkdir(exist_ok=True)
+    (SCAN_REQ / name).write_text(str(time.time()))
+
+
 @app.get("/einstellungen", response_class=HTMLResponse)
 def page_settings(request: Request):
     return render(request, "settings.html", {"nav": "settings", "ntp": clock.state, "bg_max_mb": BG_MAX // 1048576,
-                                             "has_pw": bool(load_secrets().get("password"))})
+                                             "has_pw": bool(load_secrets().get("password")),
+                                             "scan": scan_state(), "profiles": scanjobs.PROFILES,
+                                             "intervals": scanjobs.INTERVALS})
+
+
+@app.get("/api/scanstate")
+def api_scanstate(request: Request):
+    if not is_editor(request):
+        raise HTTPException(401, "Nicht angemeldet")
+    return scan_state()
+
+
+def _job_call(fn, *args):
+    try:
+        return fn(*args)
+    except scanjobs.JobError as e:
+        raise HTTPException(400, str(e)) from None
+
+
+@app.post("/api/scanjobs")
+def api_scanjob_add(request: Request, body: dict = Body(...)):
+    require_editor(request)
+    job = _job_call(scanjobs.validate_job, body)
+    settings.save_job(job)
+    return {"id": job["id"]}
+
+
+@app.put("/api/scanjobs/{job_id}")
+def api_scanjob_update(job_id: str, request: Request, body: dict = Body(...)):
+    require_editor(request)
+    if not any(j["id"] == job_id for j in settings.get()["scan_jobs"]):
+        raise HTTPException(404, "Auftrag gibt es nicht mehr")
+    settings.save_job(_job_call(scanjobs.validate_job, body, job_id))
+    return {"ok": True}
+
+
+@app.delete("/api/scanjobs/{job_id}")
+def api_scanjob_delete(job_id: str, request: Request):
+    require_editor(request)
+    if not settings.delete_job(job_id):
+        raise HTTPException(404, "Auftrag gibt es nicht mehr")
+    (SCAN_REQ / job_id).unlink(missing_ok=True)
+    return {"ok": True}
+
+
+@app.post("/api/scanjobs/{job_id}/run")
+def api_scanjob_run(job_id: str, request: Request):
+    require_editor(request)
+    if not any(j["id"] == job_id for j in settings.get()["scan_jobs"]):
+        raise HTTPException(404, "Auftrag gibt es nicht mehr")
+    _request_scan(job_id)
+    return {"ok": True}
+
+
+@app.put("/api/housekeep")
+def api_housekeep(request: Request, body: dict = Body(...)):
+    require_editor(request)
+    n = _job_call(scanjobs.validate_housekeep, body.get("max"))
+    settings.set_housekeep(n)
+    if n > 0:
+        _request_scan("housekeep")                     # gleich einmal aufraeumen
+    return {"ok": True}
 
 
 @app.put("/api/settings")

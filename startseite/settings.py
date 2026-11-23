@@ -16,6 +16,8 @@ DEFAULTS = {
     "bg_file": "",        # Dateiname im Datenverzeichnis, leer = kein Hintergrundbild
     "bg_ver": 0,          # fuer Cache-Busting der Bild-URL
     "bg_dim": 25,         # Abdunkeln in Prozent (0-80)
+    "scan_jobs": [],      # automatische nmap-Scans (siehe scanjobs.validate_job)
+    "housekeep_max": 0,   # hoechstens so viele Scans je Ordner, 0 = aus
 }
 BG_MAX = 15 * 1024 * 1024
 BG_TYPES = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
@@ -59,6 +61,34 @@ class Settings:
                 except (TypeError, ValueError):
                     raise SettingsError("Abdunkeln: Zahl 0–80") from None
                 d["bg_dim"] = max(0, min(80, v))
+            self._save(d)
+            return d
+
+    # ---- automatische Scans ----
+    def save_job(self, job: dict) -> dict:
+        with self.lock:
+            d = self.get()
+            jobs = [j for j in d["scan_jobs"] if j["id"] != job["id"]]
+            pos = next((i for i, j in enumerate(d["scan_jobs"]) if j["id"] == job["id"]), len(jobs))
+            jobs.insert(pos, job)
+            d["scan_jobs"] = jobs
+            self._save(d)
+            return d
+
+    def delete_job(self, job_id: str) -> bool:
+        with self.lock:
+            d = self.get()
+            jobs = [j for j in d["scan_jobs"] if j["id"] != job_id]
+            if len(jobs) == len(d["scan_jobs"]):
+                return False
+            d["scan_jobs"] = jobs
+            self._save(d)
+            return True
+
+    def set_housekeep(self, n: int) -> dict:
+        with self.lock:
+            d = self.get()
+            d["housekeep_max"] = n
             self._save(d)
             return d
 

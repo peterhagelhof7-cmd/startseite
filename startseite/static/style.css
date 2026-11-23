@@ -71,6 +71,9 @@ body.has-bg {
 /* ---------- Einstellungen ---------- */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1rem 1.2rem; margin-bottom: 1rem; max-width: 900px; }
 .card.narrow { max-width: 420px; }
+.card.wide { max-width: 1200px; }
+.card .tablewrap { box-shadow: none; margin-bottom: .8rem; }
+.dlg label.chk { flex-direction: row; }
 .card h2 { margin: 0 0 .8rem; }
 .field { display: flex; flex-direction: column; gap: .25rem; font-size: .9rem; margin: .6rem 0; }
 .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: flex-end; }

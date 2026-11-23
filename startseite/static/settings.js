@@ -74,6 +74,105 @@
     });
   }
 
+  // ---- Dialoge (wie auf der Linkseite)
+  function openDialog(id, fill, onOk) {
+    const dlg = $(id), form = $("form", dlg), err = $(".err", dlg);
+    if (err) err.hidden = true;
+    form.reset();
+    if (fill) fill(form);
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const sub = e.submitter || $("button[value=ok]", form);
+      sub.disabled = true;
+      try { await onOk(form); dlg.close(); }
+      catch (x) { if (err) { err.textContent = x.message; err.hidden = false; } }
+      finally { sub.disabled = false; }
+    };
+    dlg.showModal();
+    const first = $("input, select", form);
+    if (first) first.focus();
+  }
+  document.addEventListener("click", (e) => {
+    const c = e.target.closest("[data-close]");
+    if (c) c.closest("dialog").close();
+  });
+
+  // ---- automatische Scans
+  const jobBody = (f) => ({
+    name: f.name.value, targets: f.targets.value, profile: f.profile.value,
+    interval_h: +f.interval_h.value, folder: f.folder.value, enabled: f.enabled.checked,
+  });
+  const jobActions = {
+    "job-add": () => openDialog("#dlg-job", null, async (f) => {
+      await api("POST", "/api/scanjobs", jobBody(f));
+      location.reload();
+    }),
+    "job-edit": (tr) => {
+      const j = JSON.parse(tr.dataset.job);
+      openDialog("#dlg-job", (f) => {
+        f.name.value = j.name;
+        f.targets.value = j.targets === "auto" ? "" : j.targets;
+        f.profile.value = j.profile;
+        f.interval_h.value = String(j.interval_h);
+        if (f.interval_h.value !== String(j.interval_h)) {      // Wert ausserhalb der Liste
+          f.interval_h.add(new Option(`${j.interval_h} Stunden`, j.interval_h, true, true));
+        }
+        f.folder.value = j.folder;
+        f.enabled.checked = j.enabled;
+      }, async (f) => {
+        await api("PUT", "/api/scanjobs/" + tr.dataset.id, jobBody(f));
+        location.reload();
+      });
+    },
+    "job-delete": (tr) => {
+      const j = JSON.parse(tr.dataset.job);
+      openDialog("#dlg-confirm", (f) => {
+        $(".title", f).textContent = "Auftrag löschen?";
+        $(".msg", f).textContent = `Scan-Auftrag „${j.name}“ löschen? Bereits abgelegte Scans im Ordner ${j.folder} bleiben erhalten.`;
+      }, async () => {
+        await api("DELETE", "/api/scanjobs/" + tr.dataset.id);
+        location.reload();
+      });
+    },
+    "job-run": async (tr, btn) => {
+      btn.disabled = true;
+      try {
+        await api("POST", `/api/scanjobs/${tr.dataset.id}/run`);
+        toast("Scan angefordert – startet in wenigen Sekunden");
+        setTimeout(() => location.reload(), 2500);
+      } catch (x) { toast(x.message, true); btn.disabled = false; }
+    },
+  };
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-act]");
+    if (b && jobActions[b.dataset.act]) {
+      e.preventDefault();
+      jobActions[b.dataset.act](b.closest("tr"), b);
+    }
+  });
+  // laufende oder angeforderte Scans: Seite aktualisiert sich, bis sie fertig sind
+  if ($("#jobs") && /läuft seit|startet gleich/.test($("#jobs").textContent)) {
+    const poll = setInterval(async () => {
+      try {
+        const s = await api("GET", "/api/scanstate");
+        if (!s.running && !s.jobs.some((j) => j.pending)) { clearInterval(poll); location.reload(); }
+      } catch (_) { /* egal */ }
+    }, 4000);
+  }
+
+  // ---- Housekeeper
+  const hk = $("#hk-form");
+  if (hk) hk.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const err = $("#hk-err");
+    err.hidden = true;
+    try {
+      await api("PUT", "/api/housekeep", { max: +hk.max.value });
+      toast(+hk.max.value ? "Gespeichert – wird gleich angewendet" : "Housekeeper ausgeschaltet");
+      setTimeout(() => location.reload(), 2500);
+    } catch (x) { err.textContent = x.message; err.hidden = false; }
+  });
+
   // ---- NTP
   const nf = $("#ntp-form");
   if (nf) nf.addEventListener("submit", async (e) => {

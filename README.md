@@ -32,6 +32,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/peterhagelhof7-cmd/start
 - Aufbereitete **Scan-Ansicht**: Hosts, Ports, Dienste/Versionen, OS, NSE-Skripte, Traceroute – sortier- und filterbar
 - **Suche über alle Scans** nach Port, Netz/IP oder Text
 - **Vergleich zweier Scans**: neue/verschwundene Hosts, geöffnete/geschlossene Ports, geänderte Dienste
+- **Automatische Scans**: die startseite scannt selbst – eigenes Netz oder feste Ziele, alle N Stunden, mit „Jetzt scannen“
+- **Housekeeper**: höchstens N Scans je Ordner, die ältesten werden gelöscht
 - Abgebrochene Scans werden angezeigt, XML-Download, Druckansicht
 
 **Oberfläche & Betrieb**
@@ -92,6 +94,20 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/peterhagelhof7-cmd/start
   - **Vergleich** zweier Scans: neue/verschwundene Hosts, neu geöffnete/geschlossene Ports, geänderte Dienste
   - Download der Original-XML, Druckansicht
   - abgebrochene Scans (Datei ohne `</nmaprun>`) werden bis zum letzten vollständigen Host angezeigt
+- **Automatische Scans** (Einstellungen, nur mit Passwort): Scan-Aufträge mit Name, Ziel (leer = eigenes
+  Netz des Containers, sonst Netze/IPs/Hostnamen, höchstens /16), Profil, Intervall (1–168 h) und Zielordner
+  (Standard `Automatisch/<Name>`). Profile – bewusst keine freien nmap-Optionen:
+  - *Schnell*: `-sn` (nur Hosts finden)
+  - *Standard*: `-sS -sV --version-light` (1000 häufigste Ports + Dienste)
+  - *Ausführlich*: zusätzlich `-O --osscan-limit --script=default`
+
+  Die Scans laufen im eigenen systemd-Dienst `startseite-scan` (Timer jede Minute, „Jetzt scannen“ sofort über
+  eine Path-Unit) als Benutzer `startseite` mit nur `CAP_NET_RAW`/`CAP_NET_ADMIN`; die Weboberfläche selbst hat
+  kein Schreibrecht auf die Scans. Ergebnisse erscheinen erst nach Abschluss im Ordner (`JJJJ-MM-TT_HHMM_<ziel>.xml`).
+  Ein Auftrag wird nach 3 h abgebrochen. Liste zeigt letzten Lauf (Hosts/Ports, Fehler) und nächsten Termin.
+- **Housekeeper**: „höchstens N Scans je Ordner“ (0 = aus, Standard) – gilt für **alle** Ordner der Freigabe,
+  auch für von Kollegen abgelegte Scans; die ältesten (nach Scan-Datum im XML) werden gelöscht. Läuft stündlich
+  und nach jedem automatischen Scan.
 
 Die Seite läuft **nur per HTTP** (Port 80). HTTPS-Anfragen (Port 443) werden per `301` auf HTTP
 umgeleitet. Dafür braucht nginx ein Zertifikat: es wird beim ersten Start **selbstsigniert erzeugt**

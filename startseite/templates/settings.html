@@ -61,6 +61,92 @@
   <p class="small muted">Die Startseite fragt den NTP-Server alle 15 Minuten ab. Die Uhr in der Kopfleiste zeigt diese Zeit an –
     auch wenn die Uhr des eigenen PCs falsch geht (die Abweichung steht im Tooltip der Uhr).</p>
 </section>
+
+<section class="card wide" id="scans">
+  <h2>Automatische Scans</h2>
+  <p class="small muted">Die startseite scannt selbst in festen Abständen und legt die Ergebnisse in der Freigabe ab.
+    Eigenes Netz dieses Containers: <b>{{ scan.local_networks|join(', ') or 'nicht ermittelbar' }}</b>.</p>
+  {% if scan.jobs %}
+  <div class="tablewrap">
+  <table class="list" id="jobs">
+    <thead><tr><th>Auftrag</th><th>Ziel</th><th>Profil</th><th>Alle</th><th>Letzter Lauf</th><th>Nächster</th><th></th></tr></thead>
+    <tbody>
+    {% for j in scan.jobs %}
+    <tr data-id="{{ j.id }}" data-job='{{ {"name": j.name, "targets": j.targets, "profile": j.profile, "interval_h": j.interval_h, "folder": j.folder, "enabled": j.enabled}|tojson }}'>
+      <td><b>{{ j.name }}</b>{% if not j.enabled %} <span class="badge">pausiert</span>{% endif %}<br>
+        <a class="small" href="/nmap/{{ j.folder|urlencode }}/">{{ j.folder }}</a></td>
+      <td class="mono small">{{ 'eigenes Netz' if j.targets == 'auto' else j.targets }}</td>
+      <td class="small">{{ j.profile_label.split(' – ')[0] }}</td>
+      <td class="nowrap">{{ j.interval_h }} h</td>
+      <td class="small">
+        {% if j.running %}<span class="badge warn">läuft seit {{ scan.running.started|dt('%H:%M') }}</span>
+        {% elif j.pending %}<span class="badge warn">startet gleich</span>
+        {% elif j.state.last_status == 'ok' %}<span class="badge good">ok</span> {{ j.state.last_start|dt }}
+          ({{ (j.state.last_end - j.state.last_start)|dur }})<br>
+          {% if j.state.last_file %}<a href="/nmap/{{ j.state.last_file|urlencode }}">{{ j.state.last_hosts }} Hosts, {{ j.state.last_ports }} offene Ports</a>{% endif %}
+        {% elif j.state.last_status == 'fehler' %}<span class="badge bad">Fehler</span> {{ j.state.last_start|dt }}<br><span class="muted">{{ j.state.last_error }}</span>
+        {% else %}<span class="muted">noch nie</span>{% endif %}
+      </td>
+      <td class="small nowrap">{% if j.next and j.enabled %}{{ j.next|dt('%d.%m. %H:%M') }}{% else %}–{% endif %}</td>
+      <td class="nowrap">
+        <button class="btn" type="button" data-act="job-run" {% if j.running or j.pending %}disabled{% endif %}>Jetzt scannen</button>
+        <button class="icon" type="button" data-act="job-edit" title="Bearbeiten">✎</button>
+        <button class="icon danger" type="button" data-act="job-delete" title="Löschen">✕</button>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">Noch keine automatischen Scans.</p>
+  {% endif %}
+  <button class="btn primary" type="button" data-act="job-add">+ Scan-Auftrag</button>
+</section>
+
+<section class="card">
+  <h2>Aufräumen (Housekeeper)</h2>
+  <form id="hk-form" class="row">
+    <label class="field grow">Höchstens so viele Scans je Ordner behalten <small>(0 = aus)</small>
+      <input type="number" name="max" min="0" max="10000" value="{{ site.housekeep_max }}" required></label>
+    <button class="btn primary">Speichern</button>
+  </form>
+  <p class="err" id="hk-err" hidden></p>
+  <p class="small muted">Gilt für <b>alle</b> Ordner der Freigabe – auch für Scans, die Kollegen abgelegt haben.
+    Sind es mehr, werden die ältesten (nach Scan-Datum) gelöscht. Läuft stündlich und nach jedem automatischen Scan.</p>
+  {% set hk = scan.housekeep %}
+  {% if hk.last %}<p class="small">Zuletzt aufgeräumt {{ hk.last|dt }}: {{ hk.deleted }} gelöscht{% if hk.total %} (insgesamt {{ hk.total }}){% endif %}.
+    {% if hk.files %}<span class="muted">Zuletzt gelöscht: {{ hk.files[-5:]|join(', ') }}</span>{% endif %}</p>{% endif %}
+</section>
+
+<dialog id="dlg-job" class="dlg">
+  <form method="dialog">
+    <h3>Scan-Auftrag</h3>
+    <label>Name <input name="name" maxlength="60" required placeholder="z. B. LAN"></label>
+    <label>Ziel <small>(leer = eigenes Netz: {{ scan.local_networks|join(', ') or '–' }})</small>
+      <input name="targets" placeholder="z. B. 192.168.79.0/24 10.0.0.5" autocomplete="off" spellcheck="false"></label>
+    <label>Profil
+      <select name="profile">{% for k, p in profiles.items() %}<option value="{{ k }}" {% if k == 'standard' %}selected{% endif %}>{{ p[0] }}</option>{% endfor %}</select>
+    </label>
+    <label>Alle
+      <select name="interval_h">{% for h in intervals %}<option value="{{ h }}" {% if h == 24 %}selected{% endif %}>{{ h }} Stunden{% if h == 24 %} (täglich){% elif h == 168 %} (wöchentlich){% endif %}</option>{% endfor %}</select>
+    </label>
+    <label>Ordner in der Freigabe <small>(leer = Automatisch/&lt;Name&gt;)</small>
+      <input name="folder" placeholder="Automatisch/LAN" autocomplete="off" spellcheck="false"></label>
+    <label class="chk"><input type="checkbox" name="enabled" checked> aktiv</label>
+    <p class="err" hidden></p>
+    <div class="actions"><button class="btn" type="button" data-close>Abbrechen</button><button class="btn primary" value="ok">Speichern</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg-confirm" class="dlg">
+  <form method="dialog">
+    <h3 class="title">Löschen?</h3>
+    <p class="msg"></p>
+    <p class="err" hidden></p>
+    <div class="actions"><button class="btn" type="button" data-close>Abbrechen</button><button class="btn danger" value="ok">Löschen</button></div>
+  </form>
+</dialog>
 {% endif %}
 {% endblock %}
 {% block scripts %}<script src="/static/settings.js?v={{ version }}"></script>{% endblock %}

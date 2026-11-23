@@ -11,6 +11,8 @@
   </form>
 </div>
 
+{% if site.housekeep_max %}<p class="hint">Je Ordner werden höchstens {{ site.housekeep_max }} Scans aufbewahrt – ältere löscht die startseite automatisch.</p>{% endif %}
+
 {% if listing.dirs %}
 <div class="dirs">
   {% for d in listing.dirs %}

@@ -1,0 +1,26 @@
+[Unit]
+Description=startseite - automatische nmap-Scans und Housekeeper
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=startseite
+Group=startseite
+WorkingDirectory=/opt/startseite
+Environment=STARTSEITE_DATA_DIR=/var/lib/startseite
+Environment=STARTSEITE_SCAN_DIR=/srv/nmap
+Environment=TZ=Europe/Berlin
+Environment=PYTHONUNBUFFERED=1
+Environment=NMAP_PRIVILEGED=1
+ExecStart=/usr/bin/python3 -m startseite.scanrun
+# nur die Rechte, die nmap fuer Raw-Pakete (SYN-Scan, OS-Erkennung, ARP/MAC) braucht
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/startseite /srv/nmap
+Nice=10
+TimeoutStartSec=4h

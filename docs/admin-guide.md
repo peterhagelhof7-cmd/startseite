@@ -51,6 +51,21 @@ nmap -sV --script=default -oX 2026-11-23_dc.xml 192.168.10.10   # ein Host mit S
 Tipp: Datum vorne in den Dateinamen – dann sortieren sich die Scans sauber, und unter „Vergleichen mit“
 steht der vorherige Scan desselben Ordners schon bereit.
 
+### Automatische Scans und Aufräumen
+
+Unter **⚙ Einstellungen → Automatische Scans** legt man Scan-Aufträge an: Ziel leer lassen = eigenes Netz
+des Containers, Profil wählen, Intervall, Ordner. **Jetzt scannen** startet sofort. Die Ergebnisse landen
+in der Freigabe (Standard `Automatisch/<Name>`).
+
+Unter **Aufräumen (Housekeeper)** begrenzt man die Anzahl der Scans je Ordner, z. B. 30. Achtung: das gilt
+für alle Ordner der Freigabe, auch für Scans von Kollegen – die ältesten werden gelöscht. 0 schaltet aus.
+
+Scannen darf man nur Netze, für die man zuständig ist. Häufige ausführliche Scans erzeugen Last und können
+in IDS/Firewalls Alarm auslösen – im Zweifel „Standard“ und ein längeres Intervall wählen.
+
+Im Container: `journalctl -u startseite-scan -n 50` zeigt die letzten Läufe,
+`systemctl list-timers startseite-scan.timer` den Timer.
+
 ## 4. Passwörter
 
 Im Container (`pct enter <CTID>`):
@@ -97,6 +112,7 @@ sie die selbst mit ⇩ in ihrer Gruppe „Eigene Links“.
 | Uhrzeit gelb | NTP-Server nicht erreichbar (UDP 123) → in den Einstellungen einen erreichbaren Server eintragen |
 | Windows: Freigabe „nicht gefunden“ | Gast-Zugriff blockiert → mit Benutzer `scan` anmelden |
 | Scan wird nicht angezeigt / Fehler | Datei muss nmap-XML sein (`-oX`); abgebrochene Scans werden als „unvollständig“ gezeigt |
+| Automatischer Scan mit Fehler | Meldung steht in der Liste; Details: `journalctl -u startseite-scan -n 50` |
 | Seite reagiert nicht | `systemctl status startseite nginx` und `journalctl -u startseite -n 50` |
 
 ## 8. Entfernen

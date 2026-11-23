@@ -1,0 +1,9 @@
+[Unit]
+Description=startseite - "Jetzt scannen" sofort ausfuehren
+
+[Path]
+DirectoryNotEmpty=/var/lib/startseite/scan-requests
+Unit=startseite-scan.service
+
+[Install]
+WantedBy=paths.target
