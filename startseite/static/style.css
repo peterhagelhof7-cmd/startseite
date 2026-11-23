@@ -108,6 +108,10 @@ input:focus, select:focus, .btn:focus-visible, .icon:focus-visible { outline: 2p
 .link .tools { display: flex; }
 .grip { cursor: grab; color: var(--muted); padding: 0 .15rem; user-select: none; font-size: 1rem; touch-action: none; }
 .grip-demo { color: var(--text); }
+/* ohne Anmeldung: Gruppen-Griff nur beim Darueberfahren zeigen */
+body:not(.editing) .group h2 .grip { opacity: 0; transition: opacity .15s; }
+body:not(.editing) .group:hover h2 .grip, body:not(.editing) .group h2 .grip:focus { opacity: .7; }
+@media (hover: none) { body:not(.editing) .group h2 .grip { opacity: .5; } }
 .editing .links { min-height: 2.6rem; border: 1px dashed transparent; border-radius: 8px; }
 .editing .links:empty { border-color: var(--line); }
 .dragging { opacity: .4; }

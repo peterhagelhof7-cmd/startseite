@@ -4,6 +4,8 @@
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const editing = document.body.classList.contains("editing");
+  // Persoenliche Gruppen-Reihenfolge (ohne Anmeldung), 10 Jahre im Browser gespeichert
+  const LAYOUT_COOKIE = "startseite_layout";
 
   function toast(msg, bad) {
     const t = $("#toast");
@@ -75,7 +77,7 @@
   filter.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       const first = $$(".link").find((l) => !l.hidden && !l.closest(".group").hidden);
-      if (first) location.href = $("a", first).href;
+      if (first) window.open($("a", first).href, "_blank", "noopener");
     } else if (e.key === "Escape") {
       filter.value = "";
       applyFilter();
@@ -146,6 +148,10 @@
       });
     },
     import: () => $("#import-file").click(),
+    "reset-layout": () => {
+      document.cookie = LAYOUT_COOKIE + "=; Max-Age=0; Path=/; SameSite=Lax";
+      location.reload();
+    },
   };
 
   document.addEventListener("click", (e) => {
@@ -175,23 +181,23 @@
   const pending = sessionStorage.getItem("startseite-toast");
   if (pending) { sessionStorage.removeItem("startseite-toast"); toast(pending); }
 
-  // ------------------------------------------------ Drag & Drop (nur Bearbeiten-Modus)
-  if (!editing) return;
+  // ------------------------------------------------ Drag & Drop
+  // Bearbeiten-Modus: Links und Gruppen, gespeichert auf dem Server (Standard fuer alle).
+  // Ohne Anmeldung: nur Gruppen, gespeichert als Cookie (eigene Anordnung je Browser).
   let drag = null;        // {el, kind: "link"|"group"}
 
-  // Ziehen nur ueber den Griff starten
-  document.addEventListener("pointerdown", (e) => {
-    const grip = e.target.closest(".grip");
-    $$("[draggable=true]").forEach((x) => x.removeAttribute("draggable"));
-    if (grip) grip.parentElement.closest(".link, .group").setAttribute("draggable", "true");
-  });
+  // Gezogen wird am Griff (der selbst draggable ist); bewegt wird der ganze Link bzw. die Gruppe
+  $$(".grip").forEach((g) => g.setAttribute("draggable", "true"));
 
   document.addEventListener("dragstart", (e) => {
-    const el = e.target.closest && e.target.closest("[draggable=true]");
-    if (!el) return;
+    const grip = e.target.closest && e.target.closest(".grip");
+    if (!grip) return;
+    const el = grip.parentElement.closest(".link, .group");
     drag = { el, kind: el.classList.contains("link") ? "link" : "group" };
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", el.dataset.id);
+    const r = el.getBoundingClientRect();
+    e.dataTransfer.setDragImage(el, e.clientX - r.left, e.clientY - r.top);
     requestAnimationFrame(() => { if (drag && drag.el === el) el.classList.add("dragging"); });
   });
 
@@ -223,8 +229,19 @@
   document.addEventListener("dragend", async () => {
     if (!drag) return;
     drag.el.classList.remove("dragging");
-    drag.el.removeAttribute("draggable");
     drag = null;
+    if (!editing) {
+      const ids = $$(".group").map((g) => g.dataset.id).join(".");
+      document.cookie = `${LAYOUT_COOKIE}=${ids}; Max-Age=315360000; Path=/; SameSite=Lax`;
+      if (!$("[data-act=reset-layout]")) {
+        const b = document.createElement("button");
+        b.className = "btn"; b.type = "button"; b.dataset.act = "reset-layout";
+        b.title = "Eigene Anordnung der Gruppen verwerfen"; b.textContent = "Standard-Anordnung";
+        $(".toolbar").appendChild(b);
+      }
+      toast("Deine Anordnung ist in diesem Browser gespeichert");
+      return;
+    }
     const layout = $$(".group").map((g) => ({ id: +g.dataset.id, links: $$(".link", g).map((l) => +l.dataset.id) }));
     $$(".group").forEach((g) => ($(".count", g).textContent = $$(".link", g).length));
     try {

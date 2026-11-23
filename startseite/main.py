@@ -192,9 +192,26 @@ def _decorate(groups):
     return groups
 
 
+LAYOUT_COOKIE = "startseite_layout"   # persoenliche Gruppen-Reihenfolge: "3.1.2" (Gruppen-IDs)
+
+
+def _personal_order(request: Request) -> list[int]:
+    raw = request.cookies.get(LAYOUT_COOKIE, "")
+    return [int(x) for x in raw.split(".") if x.isdigit()][:500]
+
+
 @app.get("/", response_class=HTMLResponse)
 def page_index(request: Request):
-    return render(request, "index.html", {"nav": "links", "groups": _decorate(store.all()),
+    groups = _decorate(store.all())
+    editing = is_editor(request)
+    order = _personal_order(request)
+    personal = bool(order) and not editing        # im Bearbeiten-Modus gilt die Standard-Reihenfolge
+    if personal:
+        rank = {gid: i for i, gid in enumerate(order)}
+        # bekannte Gruppen in eigener Reihenfolge, neue Gruppen hinten in Standard-Reihenfolge
+        groups.sort(key=lambda g: (0, rank[g["id"]]) if g["id"] in rank else (1, 0))
+    return render(request, "index.html", {"nav": "links", "groups": groups, "editing": editing,
+                                          "personal": personal,
                                           "has_pw": bool(load_secrets().get("password"))})
 
 

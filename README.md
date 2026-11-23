@@ -4,8 +4,12 @@ Kleine Startseite für das Team, läuft in einem LXC-Container (Debian 13):
 
 - **Links**: oft besuchte Webseiten in **Gruppen**, Anzeigename frei wählbar, optionale Notiz.
   Lesen darf jeder, **Bearbeiten** (anlegen, umbenennen, löschen, per Drag & Drop sortieren und
-  zwischen Gruppen verschieben, Export/Import als JSON) nur mit Passwort. Filterfeld mit `/`,
-  Enter öffnet den ersten Treffer.
+  zwischen Gruppen verschieben, Export/Import als JSON) nur mit Passwort. Links öffnen in einem
+  neuen Tab. Filterfeld mit `/`, Enter öffnet den ersten Treffer.
+- **Eigene Anordnung**: Jeder kann sich die Gruppen ohne Anmeldung am Griff ⠿ selbst anordnen.
+  Die Reihenfolge wird im Cookie `startseite_layout` gespeichert (10 Jahre, nur dieser Browser);
+  „Standard-Anordnung“ verwirft sie. Neu angelegte Gruppen erscheinen hinten. Im Bearbeiten-Modus
+  wird die Standard-Reihenfolge für alle geändert.
 - **nmap-Scans**: Kollegen legen über die SMB-Freigabe `\\<container>\nmap` beliebige Ordner an
   und speichern dort nmap-Ergebnisse als XML (`nmap -oX datei.xml …`). Die Seite zeigt die
   Ordner als Baum und jeden Scan aufbereitet an:

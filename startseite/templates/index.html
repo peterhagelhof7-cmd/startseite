@@ -18,10 +18,12 @@
     <button class="btn" type="button" data-act="import">Import</button>
     <input id="import-file" type="file" accept=".json,application/json" hidden>
   </div>
+  {% elif personal %}
+  <button class="btn" type="button" data-act="reset-layout" title="Eigene Anordnung der Gruppen verwerfen">Standard-Anordnung</button>
   {% endif %}
 </div>
 
-{% if editing %}<p class="hint">Bearbeiten-Modus: Links und Gruppen am Griff <span class="grip-demo">⠿</span> ziehen, um sie zu sortieren oder in eine andere Gruppe zu verschieben.</p>{% endif %}
+{% if editing %}<p class="hint">Bearbeiten-Modus: Links und Gruppen am Griff <span class="grip-demo">⠿</span> ziehen, um sie zu sortieren oder in eine andere Gruppe zu verschieben. Die Gruppen-Reihenfolge ist hier die Standard-Anordnung für alle; wer sich die Gruppen selbst angeordnet hat, behält seine eigene.</p>{% endif %}
 
 {% if not groups %}
 <p class="empty">Noch keine Links.{% if not editing %} Zum Anlegen oben rechts auf „Bearbeiten“ klicken.{% endif %}</p>
@@ -31,7 +33,7 @@
 {% for g in groups %}
   <section class="group" data-id="{{ g.id }}" data-name="{{ g.name }}">
     <h2>
-      {% if editing %}<span class="grip" title="Gruppe verschieben">⠿</span>{% endif %}
+      <span class="grip" title="{{ 'Gruppe verschieben (Standard-Reihenfolge für alle)' if editing else 'Gruppe verschieben – deine eigene Anordnung, wird in diesem Browser gespeichert' }}">⠿</span>
       <span class="gname">{{ g.name }}</span>
       <span class="count">{{ g.links|length }}</span>
       {% if editing %}
@@ -46,7 +48,7 @@
     {% for l in g.links %}
       <li class="link" data-id="{{ l.id }}" data-name="{{ l.name }}" data-url="{{ l.url }}" data-note="{{ l.note }}">
         {% if editing %}<span class="grip" title="Link verschieben">⠿</span>{% endif %}
-        <a href="{{ l.url }}" title="{{ l.url }}"{% if editing %}draggable="false"{% endif %}>
+        <a href="{{ l.url }}" title="{{ l.url }}" target="_blank" rel="noopener noreferrer"{% if editing %} draggable="false"{% endif %}>
           <span class="av" style="--h: {{ l.hue }}">{{ l.initial }}</span>
           <span class="ltext"><span class="lname">{{ l.name }}</span><span class="lhost">{{ l.note or l.host }}</span></span>
         </a>
