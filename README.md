@@ -1,6 +1,45 @@
 # startseite
 
-Kleine Startseite für das Team, läuft in einem LXC-Container (Debian 13):
+[![Release](https://img.shields.io/github/v/release/peterhagelhof7-cmd/startseite?label=Release)](https://github.com/peterhagelhof7-cmd/startseite/releases/latest)
+[![Lizenz: GPL-3.0](https://img.shields.io/github/license/peterhagelhof7-cmd/startseite?label=Lizenz)](LICENSE)
+![Proxmox VE](https://img.shields.io/badge/Proxmox%20VE-LXC-E57000?logo=proxmox&logoColor=white)
+![Debian 13](https://img.shields.io/badge/Debian-13-A81D33?logo=debian&logoColor=white)
+![Python](https://img.shields.io/badge/Python-FastAPI-3776AB?logo=python&logoColor=white)
+
+Startseite fürs Team im eigenen Netz: **Links in Gruppen** für alle, **nmap-Scans** aus einer
+SMB-Freigabe übersichtlich im Browser – als schlanker LXC-Container auf Proxmox VE, installiert
+mit **einem Befehl**.
+
+```sh
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/peterhagelhof7-cmd/startseite/main/pve-install.sh)"
+```
+
+## Features
+
+**Links**
+- Links in **Gruppen**, Anzeigename und Notiz frei wählbar, Öffnen im **neuen Tab**
+- **Lesen für alle, Bearbeiten mit Passwort** – anlegen, umbenennen, löschen, Drag & Drop
+- **Adress-Vorlagen je Gruppe** (http/https + Präfix/Suffix): `kunde1` → `https://kunde1.dyndns.org`
+- **Alle Links einer Gruppe öffnen** mit einem Klick
+- **Eigene Gruppen-Anordnung** je Besucher, ohne Anmeldung (Cookie)
+- Schnellfilter (`/`), Export/Import als JSON
+
+**nmap-Scans**
+- Ablage über die **SMB-Freigabe** `\\<container>\nmap`, Ordnerstruktur frei
+- Aufbereitete **Scan-Ansicht**: Hosts, Ports, Dienste/Versionen, OS, NSE-Skripte, Traceroute – sortier- und filterbar
+- **Suche über alle Scans** nach Port, Netz/IP oder Text
+- **Vergleich zweier Scans**: neue/verschwundene Hosts, geöffnete/geschlossene Ports, geänderte Dienste
+- Abgebrochene Scans werden angezeigt, XML-Download, Druckansicht
+
+**Oberfläche & Betrieb**
+- **Datum und Uhrzeit per NTP** in der Kopfleiste – unabhängig von der Uhr des eigenen PCs
+- **Hintergrundbild** per Upload in den Einstellungen, mit Abdunkeln; Hell/Dunkel nach System
+- **Geführte Installation** auf Proxmox VE (Netzwerk, Hostname, Passwörter, Updates)
+- **Automatische Updates**: startseite aus GitHub-Releases, Debian-Sicherheitsupdates
+- **Nur HTTP**, HTTPS wird auf HTTP umgeleitet (Zertifikat selbstsigniert, beim ersten Start erzeugt)
+- Unprivilegierter Container, ~80 MB RAM im Betrieb
+
+## Funktionen im Detail
 
 - **Links**: oft besuchte Webseiten in **Gruppen**, Anzeigename frei wählbar, optionale Notiz.
   Lesen darf jeder, **Bearbeiten** (anlegen, umbenennen, löschen, per Drag & Drop sortieren und
@@ -50,8 +89,9 @@ funktioniert in aktuellen Browsern nicht mehr zuverlässig (XSLT wird aus den Br
 ```
 Browser ──http:80──▶ nginx ──▶ startseite (Python/FastAPI, 127.0.0.1:8080)
         ──https:443─▶ nginx ──301 ▶ http://…                │
-                                                            ├─ /var/lib/startseite  (SQLite: Links/Gruppen, Passwort-Hash)
-Kollegen ──SMB 445──▶ smbd ──▶ /srv/nmap  ◀── nur lesend ───┘
+                                                            ├─ /var/lib/startseite  (SQLite: Links/Gruppen, Einstellungen)
+Kollegen ──SMB 445──▶ smbd ──▶ /srv/nmap  ◀── nur lesend ───┤
+                                       NTP-Server ◀─UDP 123─┘  (Uhrzeit, alle 15 min)
 ```
 
 | Pfad | Inhalt |
@@ -66,7 +106,7 @@ Kollegen ──SMB 445──▶ smbd ──▶ /srv/nmap  ◀── nur lesend �
 
 ## Installation auf Proxmox VE (ein Befehl)
 
-In der Shell des Proxmox-Hosts (als root):
+In der Shell des Proxmox-Hosts (als root, getestet mit Proxmox VE 9):
 
 ```sh
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/peterhagelhof7-cmd/startseite/main/pve-install.sh)"
