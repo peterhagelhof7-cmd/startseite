@@ -6,11 +6,17 @@
 #   --smb-pw  Passwort des gemeinsamen SMB-Benutzers "scan" (fuer Windows 11, das Gast-Zugriff blockiert)
 # Ohne Angabe bleiben vorhandene Passwoerter erhalten. Passwoerter koennen auch per
 # Umgebung uebergeben werden (WEB_PW / SMB_PW), dann stehen sie nicht in der Prozessliste.
+# Weitere Umgebungsvariablen (ohne Angabe bleibt die bisherige Einstellung):
+#   AUTO_UPDATE=yes|no   startseite nachts aus GitHub-Releases aktualisieren
+#   OS_UPDATES=yes|no    Debian-Sicherheitsupdates automatisch (unattended-upgrades)
+#   STARTSEITE_REPO=owner/repo   Quelle fuer Updates (Standard: peterhagelhof7-cmd/startseite)
 set -e
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 export DEBIAN_FRONTEND=noninteractive
 WEB_PW=${WEB_PW:-}
 SMB_PW=${SMB_PW:-}
+AUTO_UPDATE=${AUTO_UPDATE:-}
+OS_UPDATES=${OS_UPDATES:-}
 while [ $# -gt 0 ]; do
     case "$1" in
         --web-pw) WEB_PW=$2; shift 2 ;;
@@ -80,6 +86,33 @@ fi
 systemctl disable --now nmbd >/dev/null 2>&1 || true
 systemctl disable --now samba-ad-dc >/dev/null 2>&1 || true
 
+echo "== Updates"
+install -m 0755 "$SRC/deploy/startseite-update" /usr/local/sbin/startseite-update
+install -m 0644 "$SRC/deploy/startseite-update.service" /etc/systemd/system/startseite-update.service
+install -m 0644 "$SRC/deploy/startseite-update.timer" /etc/systemd/system/startseite-update.timer
+install -d -m 0755 /etc/startseite
+if [ -n "${STARTSEITE_REPO:-}" ] || [ ! -f /etc/startseite/update.conf ]; then
+    printf '# Quelle fuer startseite-update (GitHub owner/repo)\nREPO=%s\n' \
+        "${STARTSEITE_REPO:-peterhagelhof7-cmd/startseite}" > /etc/startseite/update.conf
+fi
+systemctl daemon-reload
+case "$AUTO_UPDATE" in
+    yes) systemctl enable startseite-update.timer >/dev/null 2>&1; systemctl start startseite-update.timer ;;
+    no)  systemctl disable --now startseite-update.timer >/dev/null 2>&1 || true ;;
+esac
+case "$OS_UPDATES" in
+    yes)
+        apt-get -y -q install --no-install-recommends unattended-upgrades >/dev/null
+        printf 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n' \
+            > /etc/apt/apt.conf.d/20auto-upgrades
+        ;;
+    no)
+        [ -f /etc/apt/apt.conf.d/20auto-upgrades ] && \
+            printf 'APT::Periodic::Update-Package-Lists "0";\nAPT::Periodic::Unattended-Upgrade "0";\n' \
+            > /etc/apt/apt.conf.d/20auto-upgrades
+        ;;
+esac
+
 echo "== Dienste starten"
 systemctl daemon-reload
 systemctl enable startseite nginx smbd >/dev/null 2>&1
@@ -92,6 +125,8 @@ for s in startseite nginx smbd; do
 done
 curl -fsS -o /dev/null -w 'HTTP  %{http_code}\n' http://127.0.0.1/ 2>/dev/null || echo "HTTP  nicht erreichbar"
 curl -ksS -o /dev/null -w 'HTTPS %{http_code} -> %{redirect_url}\n' https://127.0.0.1/ 2>/dev/null || true
+printf '%-11s %s\n' "Auto-Update" "$(systemctl is-enabled startseite-update.timer 2>/dev/null || echo aus)"
+printf '%-11s %s\n' "OS-Updates" "$(grep -q 'Unattended-Upgrade "1"' /etc/apt/apt.conf.d/20auto-upgrades 2>/dev/null && echo an || echo aus)"
 pdbedit -L 2>/dev/null | grep -q '^scan:' || echo "Hinweis: SMB-Benutzer 'scan' hat noch kein Passwort (--smb-pw); nur Gast-Zugriff aktiv."
 [ -n "$(runuser -u startseite -- python3 -c 'import json;print(json.load(open("/var/lib/startseite/secrets.json")).get("password",""))' 2>/dev/null)" ] \
     || echo "Hinweis: Bearbeiten-Passwort fehlt noch: startseite-passwort"

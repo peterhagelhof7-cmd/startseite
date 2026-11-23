@@ -42,16 +42,40 @@ Kollegen ──SMB 445──▶ smbd ──▶ /srv/nmap  ◀── nur lesend �
 | `/srv/nmap` | SMB-Freigabe `nmap` mit den Scans |
 | `/etc/startseite/tls/` | selbstsigniertes Zertifikat für die 443-Umleitung |
 
-## Container anlegen (Proxmox VE)
+## Installation auf Proxmox VE (ein Befehl)
 
-Auf dem PVE-Host (Debian-13-Template, unprivilegiert, 1 Kern, 512 MB RAM, 8 GB):
+In der Shell des Proxmox-Hosts (als root):
 
 ```sh
-sh pve-create-ct.sh <CTID> startseite dhcp local-lvm vmbr0
-# oder feste IP: sh pve-create-ct.sh <CTID> startseite 192.168.1.50/24,gw=192.168.1.1
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/peterhagelhof7-cmd/startseite/main/pve-install.sh)"
 ```
 
-## Installation / Update (im Container, als root)
+Der Assistent fragt nacheinander ab:
+
+1. Container-ID (nächste freie vorgeschlagen) und Hostname
+2. Speicher für Laufwerk und Debian-Vorlage, Ressourcen (Standard: 1 Kern, 512 MB RAM, 8 GB)
+3. Netzwerk: Bridge, optional VLAN, DHCP oder feste IP mit Gateway, DNS-Server und Suchdomäne
+4. Passwort für den Bearbeiten-Modus der Linkseite
+5. Passwort für den SMB-Benutzer `scan` (leer = nur Gast-Zugriff)
+6. Automatische Updates: Debian-Sicherheitsupdates und/oder startseite-Updates aus GitHub-Releases
+7. Zusammenfassung zum Prüfen – erst danach wird etwas angelegt
+
+Dann wird ein unprivilegierter Debian-13-Container angelegt (Autostart an, Tag `startseite`),
+die startseite darin installiert und am Ende Adresse und SMB-Pfad angezeigt. Passwörter werden
+als nur für root lesbare Datei in den Container übergeben und dort nach dem Setzen gelöscht.
+
+Zum Testen ohne GitHub: `STARTSEITE_SRC=/root/startseite.tgz bash pve-install.sh`
+(Archiv z. B. per `git archive --format=tar.gz --prefix=startseite/ HEAD -o startseite.tgz`).
+
+## Updates
+
+- `startseite-update` im Container holt das neueste GitHub-Release und installiert es
+  (`--check` = nur prüfen, `--force` = neu installieren). Links, Passwörter und Scans bleiben erhalten.
+- Automatisch: `startseite-update.timer` (nachts 03:30), ein-/ausschalten mit
+  `systemctl enable --now startseite-update.timer` bzw. `systemctl disable --now startseite-update.timer`.
+- Debian-Sicherheitsupdates über `unattended-upgrades` (`/etc/apt/apt.conf.d/20auto-upgrades`).
+
+## Manuelle Installation / Update (im Container, als root)
 
 ```sh
 # vom Arbeitsplatz aus Quellen in den Container kopieren
@@ -62,6 +86,7 @@ WEB_PW='…' SMB_PW='…' sh /root/startseite-src/deploy/install.sh
 
 - `WEB_PW` – Passwort für den Bearbeiten-Modus (mind. 6 Zeichen). Später ändern: `startseite-passwort`
 - `SMB_PW` – Passwort des gemeinsamen SMB-Benutzers `scan`
+- `AUTO_UPDATE=yes|no`, `OS_UPDATES=yes|no` – automatische Updates (siehe oben)
 
 Ohne die Variablen bleiben vorhandene Passwörter erhalten – so läuft auch ein Update.
 Links, Passwort und Scans bleiben beim Update erhalten.

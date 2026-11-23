@@ -1,0 +1,8 @@
+[Unit]
+Description=startseite auf neuestes GitHub-Release aktualisieren
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/startseite-update

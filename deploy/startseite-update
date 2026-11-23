@@ -1,0 +1,49 @@
+#!/bin/sh
+# startseite auf das neueste GitHub-Release aktualisieren.
+#   startseite-update           aktualisieren, falls es eine neuere Version gibt
+#   startseite-update --check   nur anzeigen, ob es eine neuere Version gibt
+#   startseite-update --force   neuestes Release auch bei gleicher Version neu installieren
+# Links, Passwoerter und Scans bleiben erhalten. Laeuft automatisch ueber startseite-update.timer,
+# wenn automatische Updates eingeschaltet sind (/etc/startseite/update.conf).
+set -e
+# Alles in einer Funktion: install.sh ersetzt dieses Skript waehrend es laeuft,
+# sh muss es deshalb vorher komplett eingelesen haben.
+main() {
+    REPO=peterhagelhof7-cmd/startseite
+    [ -f /etc/startseite/update.conf ] && . /etc/startseite/update.conf
+    MODE=${1:-}
+
+    CUR=$(sed -n 's/^VERSION = "\(.*\)"/\1/p' /opt/startseite/startseite/__init__.py 2>/dev/null)
+    TAG=$(curl -fsSL -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null \
+          | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
+    if [ -z "$TAG" ]; then
+        echo "Kein Release gefunden ($REPO) – GitHub nicht erreichbar oder noch kein Release veroeffentlicht."
+        exit 1
+    fi
+    NEW=${TAG#v}
+
+    newer=no
+    if [ "$CUR" != "$NEW" ] && [ "$(printf '%s\n%s\n' "$CUR" "$NEW" | sort -V | tail -1)" = "$NEW" ]; then
+        newer=yes
+    fi
+
+    if [ "$MODE" = "--check" ]; then
+        [ $newer = yes ] && echo "Neue Version verfuegbar: $CUR -> $NEW" || echo "Aktuell: $CUR (neuestes Release $NEW)"
+        exit 0
+    fi
+    if [ $newer = no ] && [ "$MODE" != "--force" ]; then
+        echo "Aktuell: $CUR"
+        exit 0
+    fi
+
+    T=$(mktemp -d)
+    trap 'rm -rf "$T"' EXIT
+    curl -fsSL "https://github.com/$REPO/archive/refs/tags/$TAG.tar.gz" | tar -xz -C "$T"
+    INST=$(find "$T" -path '*/deploy/install.sh' | head -1)
+    [ -n "$INST" ] || { echo "install.sh im Release $TAG nicht gefunden" >&2; exit 1; }
+    sh "$INST"
+    logger -t startseite-update "aktualisiert: $CUR -> $NEW" 2>/dev/null || true
+    echo "Aktualisiert: $CUR -> $NEW"
+}
+main "$@"
+exit $?
