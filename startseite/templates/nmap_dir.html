@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ crumbs[-1][0] if crumbs else "nmap-Scans" }} – Startseite{% endblock %}
+{% block content %}
+{% include "_crumbs.html" %}
+
+<div class="toolbar">
+  <form class="searchform" action="/nmap-suche" method="get">
+    <input type="search" name="q" placeholder="In {{ 'diesem Ordner' if rel else 'allen Scans' }} suchen: Port, IP/Netz, Dienst …" aria-label="Suche">
+    <input type="hidden" name="scope" value="{{ rel }}">
+    <button class="btn">Suchen</button>
+  </form>
+</div>
+
+{% if listing.dirs %}
+<div class="dirs">
+  {% for d in listing.dirs %}
+  <a class="dir" href="/nmap/{{ d.rel|urlencode }}/">
+    <span class="dicon" aria-hidden="true">📁</span>
+    <span class="dname">{{ d.name }}</span>
+    <span class="dmeta">{{ d.count }} Scan{{ '' if d.count == 1 else 's' }}{% if d.count %} · zuletzt {{ d.newest|dt('%d.%m.%Y') }}{% endif %}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if listing.files %}
+<div class="tablewrap">
+<table class="list">
+  <thead><tr><th>Scan</th><th>Gestartet</th><th class="num">Hosts erreichbar</th><th class="num">offene Ports</th><th>Aufruf</th><th class="num">Größe</th></tr></thead>
+  <tbody>
+  {% for f in listing.files %}
+  <tr>
+    <td><a href="/nmap/{{ f.rel|urlencode }}">{{ f.name }}</a>
+      {% if f.idx.error %}<span class="badge bad" title="{{ f.idx.error }}">Fehler</span>{% elif f.idx.truncated %}<span class="badge warn" title="Scan unvollständig">unvollständig</span>{% endif %}</td>
+    {% if f.idx.error %}
+    <td colspan="4" class="muted">{{ f.idx.error }}</td>
+    {% else %}
+    <td class="nowrap">{{ f.idx.start|dt }}</td>
+    <td class="num">{{ f.idx.hosts_up }}{% if f.idx.hosts_total and f.idx.hosts_total != f.idx.hosts_up %} <span class="muted">/ {{ f.idx.hosts_total }}</span>{% endif %}</td>
+    <td class="num">{{ f.idx.open_total }}</td>
+    <td class="args"><code title="{{ f.idx.args }}">{{ f.idx.args }}</code></td>
+    {% endif %}
+    <td class="num nowrap">{{ f.size|size }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if not listing.dirs and not listing.files %}
+<div class="empty">
+  <p>Hier liegen noch keine Scans.</p>
+  <p>Ablage über die Freigabe <code>\\{{ smb_host }}\{{ smb_share }}{% if rel %}\{{ rel|replace('/', '\\') }}{% endif %}</code> – Ordner frei anlegen, nmap-Ergebnisse als XML (<code>nmap -oX datei.xml …</code>) hineinlegen.</p>
+</div>
+{% elif not rel %}
+<p class="hint">Ablage: <code>\\{{ smb_host }}\{{ smb_share }}</code> – Ordner frei anlegen, Scans als XML (<code>nmap -oX …</code>).</p>
+{% endif %}
+{% endblock %}

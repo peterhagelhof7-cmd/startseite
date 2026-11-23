@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Startseite{% endblock %}</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/style.css?v={{ version }}">
+</head>
+<body class="{% if editing %}editing {% endif %}{% block bodyclass %}{% endblock %}">
+<header class="top">
+  <a class="brand" href="/"><img src="/static/favicon.svg" alt="" width="22" height="22">Startseite</a>
+  <nav>
+    <a href="/" {% if nav == 'links' %}class="active"{% endif %}>Links</a>
+    <a href="/nmap/" {% if nav == 'nmap' %}class="active"{% endif %}>nmap-Scans</a>
+    <a href="/nmap-suche" {% if nav == 'search' %}class="active"{% endif %}>Suche</a>
+  </nav>
+  <div class="top-right">{% block topright %}{% endblock %}</div>
+</header>
+<main>
+{% block content %}{% endblock %}
+</main>
+<footer>startseite {{ version }}</footer>
+<div id="toast" role="status" aria-live="polite"></div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

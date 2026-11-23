@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Vergleich – nmap{% endblock %}
+{% macro ports(list) %}{% for p in list %}<span class="chip" title="{{ p.service }} {{ p.product }} {{ p.version }}">{{ p.port }}{% if p.proto != 'tcp' %}/{{ p.proto }}{% endif %}{% if p.service %} <small>{{ p.service }}</small>{% endif %}</span>{% else %}<span class="muted">keine offenen Ports</span>{% endfor %}{% endmacro %}
+{% macro hostcell(h, rel) %}<a href="/nmap/{{ rel|urlencode }}#h-{{ h.addr }}"><b>{{ h.addr }}</b></a>{% if h.hostname %} <span class="muted">{{ h.hostname }}</span>{% endif %}{% endmacro %}
+{% block content %}
+<h1>Vergleich zweier Scans</h1>
+<div class="facts wide">
+  <div><span>Älter</span><b><a href="/nmap/{{ a.rel|urlencode }}">{{ a.rel }}</a></b><small>{{ a.idx.start|dt }} · {{ a.idx.hosts_up }} Hosts · {{ a.idx.open_total }} offene Ports</small></div>
+  <div><span>Neuer</span><b><a href="/nmap/{{ b.rel|urlencode }}">{{ b.rel }}</a></b><small>{{ b.idx.start|dt }} · {{ b.idx.hosts_up }} Hosts · {{ b.idx.open_total }} offene Ports</small></div>
+</div>
+{% if not same_opts %}<div class="alert warn">Die Scans wurden mit unterschiedlichen Optionen ausgeführt – Unterschiede können auch daher kommen.<br><code>{{ a.idx.args }}</code><br><code>{{ b.idx.args }}</code></div>{% endif %}
+
+<div class="diffsum">
+  <span class="badge good">{{ d.new|length }} neue Hosts</span>
+  <span class="badge bad">{{ d.gone|length }} nicht mehr gefunden</span>
+  <span class="badge warn">{{ d.changed|length }} geändert</span>
+  <span class="badge">{{ d.same }} unverändert</span>
+</div>
+
+{% if d.new %}
+<h2>Neue Hosts</h2>
+<div class="tablewrap"><table class="list"><thead><tr><th>Host</th><th>MAC / Hersteller</th><th>offene Ports</th></tr></thead><tbody>
+{% for h in d.new %}<tr><td class="nowrap">{{ hostcell(h, b.rel) }}</td><td>{{ h.mac or '–' }} <span class="muted">{{ h.vendor }}</span></td><td class="chips">{{ ports(h.ports) }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+
+{% if d.gone %}
+<h2>Nicht mehr gefunden</h2>
+<div class="tablewrap"><table class="list"><thead><tr><th>Host</th><th>MAC / Hersteller</th><th>offene Ports vorher</th></tr></thead><tbody>
+{% for h in d.gone %}<tr><td class="nowrap">{{ hostcell(h, a.rel) }}</td><td>{{ h.mac or '–' }} <span class="muted">{{ h.vendor }}</span></td><td class="chips">{{ ports(h.ports) }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+
+{% if d.changed %}
+<h2>Geänderte Hosts</h2>
+<div class="tablewrap"><table class="list"><thead><tr><th>Host</th><th>neu offen</th><th>geschlossen</th><th>Dienst geändert</th></tr></thead><tbody>
+{% for c in d.changed %}
+<tr>
+  <td class="nowrap">{{ hostcell(c.new, b.rel) }}</td>
+  <td class="chips">{% for p in c.opened %}<span class="chip good">{{ p.port }}{% if p.proto != 'tcp' %}/{{ p.proto }}{% endif %} <small>{{ p.service }}</small></span>{% endfor %}</td>
+  <td class="chips">{% for p in c.closed %}<span class="chip bad">{{ p.port }}{% if p.proto != 'tcp' %}/{{ p.proto }}{% endif %} <small>{{ p.service }}</small></span>{% endfor %}</td>
+  <td class="small">{% for o, n in c.svc %}<div><b>{{ n.port }}/{{ n.proto }}</b>: {{ o.service }} {{ o.product }} {{ o.version }} → {{ n.service }} {{ n.product }} {{ n.version }}</div>{% endfor %}</td>
+</tr>
+{% endfor %}
+</tbody></table></div>
+{% endif %}
+
+{% if not d.new and not d.gone and not d.changed %}<p class="empty">Keine Unterschiede bei erreichbaren Hosts und offenen Ports.</p>{% endif %}
+{% endblock %}

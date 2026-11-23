@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ status }} – Startseite{% endblock %}
+{% block content %}
+<div class="empty">
+  <h1>{{ status }}</h1>
+  <p>{{ detail }}</p>
+  <p><a href="/">Zur Startseite</a> · <a href="/nmap/">nmap-Scans</a></p>
+</div>
+{% endblock %}

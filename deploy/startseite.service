@@ -1,0 +1,28 @@
+[Unit]
+Description=startseite - Linkseite und nmap-Viewer
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=startseite
+Group=startseite
+WorkingDirectory=/opt/startseite
+Environment=STARTSEITE_DATA_DIR=/var/lib/startseite
+Environment=STARTSEITE_SCAN_DIR=/srv/nmap
+Environment=STARTSEITE_SMB_SHARE=nmap
+Environment=TZ=Europe/Berlin
+Environment=PYTHONUNBUFFERED=1
+# nur lokal, nginx davor (Port 80, 443 -> Umleitung auf http)
+ExecStart=/usr/bin/python3 -m startseite.main --host 127.0.0.1 --port 8080
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+# Scans nur lesen; schreiben nur in die eigenen Daten
+ReadWritePaths=/var/lib/startseite
+
+[Install]
+WantedBy=multi-user.target

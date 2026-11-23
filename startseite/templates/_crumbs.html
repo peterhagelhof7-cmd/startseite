@@ -1,0 +1,4 @@
+<nav class="crumbs" aria-label="Pfad">
+  <a href="/nmap/">nmap</a>
+  {% for name, r in crumbs %}<span class="sep">/</span>{% if loop.last and not crumbs_link_last %}<span>{{ name }}</span>{% else %}<a href="/nmap/{{ r|urlencode }}">{{ name }}</a>{% endif %}{% endfor %}
+</nav>

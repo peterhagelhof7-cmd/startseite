@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}{{ name }} – nmap{% endblock %}
+{% block content %}
+{% include "_crumbs.html" %}
+
+<div class="scanhead">
+  <h1>{{ name }}</h1>
+  <div class="head-actions">
+    {% if siblings %}
+    <form class="cmpform" action="/nmap-vergleich" method="get">
+      <input type="hidden" name="b" value="{{ rel }}">
+      <label>Vergleichen mit
+        <select name="a">
+          {% for s in siblings %}<option value="{{ s.rel }}" {% if prev and s.rel == prev.rel %}selected{% endif %}>{{ s.start|dt }} – {{ s.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <button class="btn">Vergleichen</button>
+    </form>
+    {% endif %}
+    <a class="btn" href="/nmap/{{ rel|urlencode }}?download=1">XML herunterladen</a>
+  </div>
+</div>
+
+{% if error %}
+<div class="alert bad"><strong>Datei kann nicht angezeigt werden:</strong> {{ error }}</div>
+{% else %}
+{% if scan.truncated %}
+<div class="alert warn">Scan unvollständig – abgebrochen oder Datei wird noch geschrieben. Angezeigt wird, was bis dahin in der Datei steht.</div>
+{% endif %}
+{% if scan.errormsg %}<div class="alert warn">nmap meldet: {{ scan.errormsg }}</div>{% endif %}
+
+<div class="facts">
+  <div><span>Gestartet</span><b>{{ scan.start|dt('%d.%m.%Y %H:%M:%S') }}</b></div>
+  <div><span>Dauer</span><b>{{ scan.elapsed|dur }}</b></div>
+  <div><span>Hosts erreichbar</span><b>{{ scan.hosts_up }}{% if scan.hosts_total %} / {{ scan.hosts_total }}{% endif %}</b></div>
+  <div><span>offene Ports</span><b>{{ scan.open_total }}</b></div>
+  <div><span>Scanner</span><b>{{ scan.scanner }} {{ scan.version }}</b></div>
+  {% for si in scan.scaninfo %}<div><span>Scan-Art</span><b>{{ si.type }} / {{ si.protocol }} ({{ si.numservices }} Ports)</b></div>{% endfor %}
+</div>
+{% if scan.args %}<pre class="cmd">{{ scan.args }}</pre>{% endif %}
+
+{% if scan.hosts %}
+<div class="toolbar sticky">
+  <input id="hfilter" class="filter" type="search" placeholder="Filtern: IP, Name, Port, Dienst …" aria-label="Hosts filtern">
+  <label class="chk"><input type="checkbox" id="only-open" checked> nur offene Ports</label>
+  <label class="chk"><input type="checkbox" id="only-up" checked> nur erreichbare Hosts</label>
+  <label class="chk"><input type="checkbox" id="only-withports"> nur Hosts mit offenen Ports</label>
+  <button class="btn" type="button" id="expand-all">alle aufklappen</button>
+  <button class="btn" type="button" id="collapse-all">alle zuklappen</button>
+  <span id="hcount" class="muted"></span>
+</div>
+
+<div class="tablewrap">
+<table class="hosts" id="hosts">
+  <thead>
+    <tr>
+      <th class="tog"></th>
+      <th data-sort="ip" class="sortable">IP-Adresse</th>
+      <th data-sort="name" class="sortable">Hostname</th>
+      <th data-sort="mac" class="sortable">MAC / Hersteller</th>
+      <th data-sort="os" class="sortable">Betriebssystem</th>
+      <th data-sort="open" class="sortable num">offen</th>
+      <th>Ports</th>
+    </tr>
+  </thead>
+  {% for h in scan.hosts %}
+  <tbody class="host state-{{ h.state }}" id="h-{{ h.addr }}"
+         data-ip="{{ loop.index0 }}" data-name="{{ h.hostname|lower }}" data-mac="{{ (h.vendor or h.mac)|lower }}"
+         data-os="{{ (h.os[0].name if h.os else '')|lower }}" data-open="{{ h.open|length }}"
+         data-text="{{ [h.addr, h.hostname, h.mac, h.vendor, (h.os[0].name if h.os else '')]|join(' ')|lower }} {% for p in h.ports %}{{ p.port }}/{{ p.proto }} {{ p.service }} {{ p.product }} {{ p.version }} {% endfor %}">
+    <tr class="hrow">
+      <td class="tog"><button type="button" class="icon toggle" aria-expanded="false" title="Details">▸</button></td>
+      <td class="nowrap"><b>{{ h.addr }}</b>{% if h.state != 'up' %} <span class="badge">{{ h.state }}</span>{% endif %}</td>
+      <td>{% for n in h.hostnames %}{{ n.name }}{% if not loop.last %}<br>{% endif %}{% else %}<span class="muted">–</span>{% endfor %}</td>
+      <td>{% if h.mac %}<span class="mono">{{ h.mac }}</span>{% if h.vendor %}<br><span class="muted">{{ h.vendor }}</span>{% endif %}{% else %}<span class="muted">–</span>{% endif %}</td>
+      <td>{% if h.os %}{{ h.os[0].name }} <span class="muted">({{ h.os[0].accuracy }} %)</span>{% else %}<span class="muted">–</span>{% endif %}</td>
+      <td class="num">{{ h.open|length }}</td>
+      <td class="chips">{% for p in h.open %}<span class="chip" title="{{ p.service }} {{ p.product }} {{ p.version }}">{{ p.port }}{% if p.proto != 'tcp' %}/{{ p.proto }}{% endif %}</span>{% endfor %}</td>
+    </tr>
+    <tr class="hdetail" hidden>
+      <td></td>
+      <td colspan="6">
+        {% if h.ports %}
+        <table class="ports">
+          <thead><tr><th>Port</th><th>Status</th><th>Dienst</th><th>Produkt / Version</th><th>Grund</th></tr></thead>
+          <tbody>
+          {% for p in h.ports %}
+          <tr class="port pstate-{{ p.state|replace('|', '-') }}">
+            <td class="nowrap mono">{{ p.port }}/{{ p.proto }}</td>
+            <td><span class="st st-{{ p.state|replace('|', '-') }}">{{ p.state }}</span></td>
+            <td>{{ p.service }}{% if p.tunnel %} <span class="muted">({{ p.tunnel }})</span>{% endif %}</td>
+            <td>{{ p.product }} {{ p.version }}{% if p.extrainfo %} <span class="muted">({{ p.extrainfo }})</span>{% endif %}
+              {% for c in p.cpe %}<br><span class="muted mono small">{{ c }}</span>{% endfor %}</td>
+            <td class="muted">{{ p.reason }}</td>
+          </tr>
+          {% for s in p.scripts %}
+          <tr class="script pstate-{{ p.state|replace('|', '-') }}"><td></td><td colspan="4"><div class="sid">{{ s.id }}</div><pre>{{ s.output }}</pre></td></tr>
+          {% endfor %}
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="muted">Keine Port-Angaben.</p>
+        {% endif %}
+        {% if h.extraports %}
+        <p class="muted small">Nicht einzeln aufgeführt: {% for e in h.extraports %}{{ e.count }} {{ e.state }}{% if e.reasons %} ({{ e.reasons }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+        {% endif %}
+        {% if h.scripts %}
+        <h4>Host-Skripte</h4>
+        {% for s in h.scripts %}<div class="sid">{{ s.id }}</div><pre>{{ s.output }}</pre>{% endfor %}
+        {% endif %}
+        {% if h.os|length > 1 %}
+        <h4>Weitere OS-Vermutungen</h4>
+        <ul class="small">{% for o in h.os[1:] %}<li>{{ o.name }} ({{ o.accuracy }} %)</li>{% endfor %}</ul>
+        {% endif %}
+        <p class="muted small">
+          Status: {{ h.state }}{% if h.reason %} ({{ h.reason }}){% endif %}
+          {% if h.distance is not none %} · Entfernung: {{ h.distance }} Hop{{ '' if h.distance == 1 else 's' }}{% endif %}
+          {% if h.uptime %} · Laufzeit: {{ h.uptime|dur }}{% if h.lastboot %} (seit {{ h.lastboot }}){% endif %}{% endif %}
+        </p>
+        {% if h.trace %}
+        <details class="small"><summary>Traceroute ({{ h.trace|length }} Hops)</summary>
+          <table class="ports"><thead><tr><th>TTL</th><th>IP</th><th>Name</th><th>RTT ms</th></tr></thead><tbody>
+          {% for t in h.trace %}<tr><td>{{ t.ttl }}</td><td class="mono">{{ t.ip }}</td><td>{{ t.host }}</td><td>{{ t.rtt }}</td></tr>{% endfor %}
+          </tbody></table>
+        </details>
+        {% endif %}
+      </td>
+    </tr>
+  </tbody>
+  {% endfor %}
+</table>
+</div>
+<p id="hnomatch" class="empty" hidden>Kein Host passt zum Filter.</p>
+{% else %}
+<p class="empty">Der Scan enthält keine Hosts.</p>
+{% endif %}
+{% if scan.summary %}<p class="muted small">{{ scan.summary }}</p>{% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="/static/scan.js?v={{ version }}"></script>{% endblock %}

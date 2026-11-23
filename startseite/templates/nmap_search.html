@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Suche – nmap{% endblock %}
+{% block content %}
+<h1>Suche in den nmap-Scans</h1>
+<form class="searchform big" action="/nmap-suche" method="get">
+  <input type="search" name="q" value="{{ q }}" placeholder="3389 · 192.168.10.0/24 · 10.0.5. · ssh · Microsoft · Hostname" aria-label="Suchbegriff" autofocus>
+  <input type="hidden" name="scope" value="{{ scope }}">
+  <label class="chk"><input type="checkbox" name="latest" value="1" {% if latest %}checked{% endif %}> nur neuester Scan je Ordner</label>
+  <button class="btn primary">Suchen</button>
+</form>
+<p class="hint">
+  Zahl = offener Port · IP oder Netz (CIDR) · IP-Anfang mit Punkt · sonst Text in Hostname, MAC-Hersteller, Betriebssystem, Dienst, Produkt, Version.
+  {% if scope %}<br>Gesucht wird nur in <b>{{ scope }}</b> – <a href="/nmap-suche?{{ {'q': q, 'latest': 1 if latest else 0}|urlencode }}">in allen Scans suchen</a>.{% endif %}
+</p>
+
+{% if res %}
+<p class="muted">{{ res.total }} Treffer ({{ res.mode }}) in {{ res.scans }} Scan{{ '' if res.scans == 1 else 's' }}{% if res.total > res.rows|length %} – angezeigt werden die ersten {{ res.rows|length }}{% endif %}.</p>
+{% if res.rows %}
+<div class="tablewrap">
+<table class="list">
+  <thead><tr><th>Scan</th><th>Gestartet</th><th>IP-Adresse</th><th>Hostname</th><th>MAC / Hersteller</th><th>Ports</th></tr></thead>
+  <tbody>
+  {% for r in res.rows %}
+  <tr>
+    <td><a href="/nmap/{{ r.dir|urlencode }}{{ '/' if r.dir }}" class="muted">{{ r.dir or '/' }}</a><br><a href="/nmap/{{ r.rel|urlencode }}">{{ r.rel.rsplit('/', 1)[-1] }}</a></td>
+    <td class="nowrap">{{ r.start|dt }}</td>
+    <td class="nowrap"><a href="/nmap/{{ r.rel|urlencode }}#h-{{ r.host.addr }}"><b>{{ r.host.addr }}</b></a></td>
+    <td>{{ r.host.hostname or '–' }}</td>
+    <td>{% if r.host.mac %}<span class="mono">{{ r.host.mac }}</span>{% if r.host.vendor %}<br><span class="muted">{{ r.host.vendor }}</span>{% endif %}{% else %}–{% endif %}</td>
+    <td class="chips">{% for p in r.ports %}<span class="chip" title="{{ p.service }} {{ p.product }} {{ p.version }}">{{ p.port }}{% if p.proto != 'tcp' %}/{{ p.proto }}{% endif %}{% if p.service %} <small>{{ p.service }}</small>{% endif %}</span>{% else %}<span class="muted">keine offenen</span>{% endfor %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

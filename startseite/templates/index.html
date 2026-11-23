@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block topright %}
+{% if editing %}
+<button class="btn primary" type="button" data-act="logout">Fertig</button>
+{% else %}
+<button class="btn" type="button" data-act="login">Bearbeiten</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+  <input id="filter" class="filter" type="search" placeholder="Links filtern …   ( / )" autocomplete="off" aria-label="Links filtern">
+  {% if editing %}
+  <div class="edit-tools">
+    <button class="btn" type="button" data-act="add-group">+ Gruppe</button>
+    <button class="btn" type="button" data-act="add-link" {% if not groups %}disabled title="Zuerst eine Gruppe anlegen"{% endif %}>+ Link</button>
+    <a class="btn" href="/api/export">Export</a>
+    <button class="btn" type="button" data-act="import">Import</button>
+    <input id="import-file" type="file" accept=".json,application/json" hidden>
+  </div>
+  {% endif %}
+</div>
+
+{% if editing %}<p class="hint">Bearbeiten-Modus: Links und Gruppen am Griff <span class="grip-demo">⠿</span> ziehen, um sie zu sortieren oder in eine andere Gruppe zu verschieben.</p>{% endif %}
+
+{% if not groups %}
+<p class="empty">Noch keine Links.{% if not editing %} Zum Anlegen oben rechts auf „Bearbeiten“ klicken.{% endif %}</p>
+{% endif %}
+
+<div id="groups" class="groups">
+{% for g in groups %}
+  <section class="group" data-id="{{ g.id }}" data-name="{{ g.name }}">
+    <h2>
+      {% if editing %}<span class="grip" title="Gruppe verschieben">⠿</span>{% endif %}
+      <span class="gname">{{ g.name }}</span>
+      <span class="count">{{ g.links|length }}</span>
+      {% if editing %}
+      <span class="tools">
+        <button class="icon" type="button" data-act="add-link" data-group="{{ g.id }}" title="Link hinzufügen">+</button>
+        <button class="icon" type="button" data-act="rename-group" title="Gruppe umbenennen">✎</button>
+        <button class="icon danger" type="button" data-act="delete-group" title="Gruppe löschen">✕</button>
+      </span>
+      {% endif %}
+    </h2>
+    <ul class="links" data-group="{{ g.id }}">
+    {% for l in g.links %}
+      <li class="link" data-id="{{ l.id }}" data-name="{{ l.name }}" data-url="{{ l.url }}" data-note="{{ l.note }}">
+        {% if editing %}<span class="grip" title="Link verschieben">⠿</span>{% endif %}
+        <a href="{{ l.url }}" title="{{ l.url }}"{% if editing %}draggable="false"{% endif %}>
+          <span class="av" style="--h: {{ l.hue }}">{{ l.initial }}</span>
+          <span class="ltext"><span class="lname">{{ l.name }}</span><span class="lhost">{{ l.note or l.host }}</span></span>
+        </a>
+        {% if editing %}
+        <span class="tools">
+          <button class="icon" type="button" data-act="edit-link" title="Bearbeiten">✎</button>
+          <button class="icon danger" type="button" data-act="delete-link" title="Löschen">✕</button>
+        </span>
+        {% endif %}
+      </li>
+    {% endfor %}
+    </ul>
+  </section>
+{% endfor %}
+</div>
+<p id="nomatch" class="empty" hidden>Kein Link passt zum Filter.</p>
+
+<dialog id="dlg-login" class="dlg">
+  <form method="dialog">
+    <h3>Bearbeiten</h3>
+    {% if has_pw %}
+    <label>Passwort <input type="password" name="password" autocomplete="current-password" required></label>
+    <p class="err" hidden></p>
+    <div class="actions"><button class="btn" type="button" data-close>Abbrechen</button><button class="btn primary" value="ok">Anmelden</button></div>
+    {% else %}
+    <p>Es ist noch kein Bearbeiten-Passwort gesetzt. Auf dem Server einmalig ausführen:</p>
+    <pre>sudo startseite-passwort</pre>
+    <div class="actions"><button class="btn" type="button" data-close>Schließen</button></div>
+    {% endif %}
+  </form>
+</dialog>
+
+<dialog id="dlg-link" class="dlg">
+  <form method="dialog">
+    <h3>Link</h3>
+    <label>Angezeigter Name <input name="name" maxlength="100" required></label>
+    <label>Adresse <input name="url" maxlength="2000" required placeholder="https://… oder router.lan"></label>
+    <label>Notiz <small>(optional, steht unter dem Namen)</small><input name="note" maxlength="500"></label>
+    <label>Gruppe <select name="group">{% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}</select></label>
+    <p class="err" hidden></p>
+    <div class="actions"><button class="btn" type="button" data-close>Abbrechen</button><button class="btn primary" value="ok">Speichern</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg-group" class="dlg">
+  <form method="dialog">
+    <h3>Gruppe</h3>
+    <label>Name <input name="name" maxlength="100" required></label>
+    <p class="err" hidden></p>
+    <div class="actions"><button class="btn" type="button" data-close>Abbrechen</button><button class="btn primary" value="ok">Speichern</button></div>
+  </form>
+</dialog>
+
+<dialog id="dlg-confirm" class="dlg">
+  <form method="dialog">
+    <h3>Löschen?</h3>
+    <p class="msg"></p>
+    <p class="err" hidden></p>
+    <div class="actions"><button class="btn" type="button" data-close>Abbrechen</button><button class="btn danger" value="ok">Löschen</button></div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}<script src="/static/links.js?v={{ version }}"></script>{% endblock %}

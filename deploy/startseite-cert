@@ -1,0 +1,18 @@
+#!/bin/sh
+# Selbstsigniertes Zertifikat fuer die 443->80-Umleitung erzeugen, falls noch keins da ist.
+# Laeuft vor jedem Start von nginx (systemd-Drop-in); erzeugt nur beim ersten Mal.
+# Neu erzeugen (z. B. nach Umbenennen des Containers): Dateien loeschen, nginx neu starten.
+set -e
+D=/etc/startseite/tls
+[ -s "$D/cert.pem" ] && [ -s "$D/key.pem" ] && exit 0
+install -d -m 0755 /etc/startseite
+install -d -m 0700 "$D"
+H=$(hostname)
+F=$(hostname -f 2>/dev/null || echo "$H")
+SAN="DNS:$H"
+[ "$F" != "$H" ] && SAN="$SAN,DNS:$F"
+for ip in $(hostname -I 2>/dev/null); do SAN="$SAN,IP:$ip"; done
+openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -subj "/CN=$F" \
+    -addext "subjectAltName=$SAN" -keyout "$D/key.pem" -out "$D/cert.pem" 2>/dev/null
+chmod 600 "$D/key.pem"
+echo "startseite: selbstsigniertes Zertifikat erzeugt ($SAN)"
