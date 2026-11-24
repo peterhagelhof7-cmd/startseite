@@ -71,6 +71,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/peterhagelhof7-cmd/start
   Die Reihenfolge wird im Cookie `startseite_layout` gespeichert (10 Jahre, nur dieser Browser);
   „Standard-Anordnung“ verwirft sie. Neu angelegte Gruppen erscheinen hinten. Im Bearbeiten-Modus
   wird die Standard-Reihenfolge für alle geändert.
+  Mehrere Gruppen lassen sich **in eine Spalte untereinander** legen: Gruppe auf die obere oder untere
+  Hälfte einer anderen ziehen; auf deren linken oder rechten Rand gezogen bekommt sie wieder eine eigene Spalte.
 - **Eigene Links**: Wer kein Bearbeiten-Passwort hat, legt sich über „+ Eigener Link“ Links nur für
   sich an. Sie erscheinen in der Gruppe „Eigene Links“ (gestrichelter Rand, standardmäßig vorne) und
   lassen sich bearbeiten, löschen, per Griff sortieren, farbig markieren und mit „alle öffnen“ starten;

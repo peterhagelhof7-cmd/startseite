@@ -212,9 +212,25 @@ COLOR_COOKIE = "startseite_colors"   # persoenliche Gruppenfarben: "3-2.7-5" (Gr
 COLORS = ["rot", "orange", "gelb", "grün", "türkis", "blau", "violett", "pink", "grau"]   # Nr. 1..9
 
 
-def _personal_order(request: Request) -> list[int]:
-    raw = request.cookies.get(LAYOUT_COOKIE, "")
-    return [int(x) for x in raw.split(".") if x.isdigit()][:500]
+def _personal_order(request: Request) -> list[tuple[int, bool]]:
+    """Cookie "3.1_4.2": Spalten durch ".", Gruppen in derselben Spalte durch "_" getrennt
+    -> [(3, False), (1, False), (4, True), (2, False)]  (True = unter der vorigen Gruppe)."""
+    out = []
+    for cell in request.cookies.get(LAYOUT_COOKIE, "").split(".")[:500]:
+        ids = [int(x) for x in cell.split("_") if x.isdigit()]
+        out += [(gid, i > 0) for i, gid in enumerate(ids)]
+    return out[:500]
+
+
+def _stacks(groups: list[dict]) -> list[list[dict]]:
+    """Gruppen -> Spalten-Stapel (eine Zelle im Raster je Stapel)."""
+    stacks = []
+    for g in groups:
+        if g.get("stacked") and stacks:
+            stacks[-1].append(g)
+        else:
+            stacks.append([g])
+    return stacks
 
 
 MY_COOKIE = "startseite_my"          # eigene Links: startseite_my0 … my3 = base64url(JSON [[name, url, notiz], …])
@@ -269,11 +285,15 @@ def page_index(request: Request):
     order = _personal_order(request)
     personal = bool(order) and not editing        # im Bearbeiten-Modus gilt die Standard-Reihenfolge
     if personal:
-        rank = {gid: i for i, gid in enumerate(order)}
-        # bekannte Gruppen in eigener Reihenfolge, neue Gruppen hinten in Standard-Reihenfolge;
+        rank = {gid: i for i, (gid, _) in enumerate(order)}
+        stacked = dict(order)
+        # bekannte Gruppen in eigener Reihenfolge, neue Gruppen hinten in Standard-Reihenfolge (je eigene Spalte);
         # "Eigene Links" ohne eigenen Platz in der Anordnung bleiben vorne
         groups.sort(key=lambda g: (0, rank[g["id"]]) if g["id"] in rank else ((-1, 0) if g.get("own") else (1, 0)))
-    return render(request, "index.html", {"nav": "links", "groups": groups, "editing": editing,
+        for g in groups:
+            g["stacked"] = stacked.get(g["id"], False)
+    return render(request, "index.html", {"nav": "links", "groups": groups, "stacks": _stacks(groups),
+                                          "editing": editing,
                                           "personal": personal, "colors": COLORS,
                                           "has_pw": bool(load_secrets().get("password"))})
 

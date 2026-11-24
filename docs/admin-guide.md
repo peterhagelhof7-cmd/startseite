@@ -23,8 +23,9 @@ Der Container braucht im Betrieb ca. 80 MB RAM; Standard sind 1 Kern, 512 MB RAM
 1. `http://<container>/` öffnen → oben rechts **Bearbeiten** → Bearbeiten-Passwort.
 2. **+ Gruppe** anlegen. Für Kunden-Zugänge nach Schema (z. B. `kunde1.dyndns.org`) eine
    **Adress-Vorlage** setzen: Protokoll `https://`, Suffix `dyndns.org` – danach reicht beim Link `kunde1`.
-3. **+ Link** anlegen, per Griff ⠿ sortieren bzw. in andere Gruppen ziehen. Diese Reihenfolge ist der
-   Standard für alle.
+3. **+ Link** anlegen, per Griff ⠿ sortieren bzw. in andere Gruppen ziehen. Gruppen lassen sich auch
+   untereinander in eine Spalte legen (auf die obere/untere Hälfte einer anderen Gruppe ziehen; linker/rechter
+   Rand = eigene Spalte). Diese Anordnung ist der Standard für alle.
 4. Oben rechts **⚙ Einstellungen**: Hintergrundbild, Abdunkeln, NTP-Server.
 5. **Fertig** klickt man zum Abmelden (sonst endet die Sitzung nach 8 Stunden).
 

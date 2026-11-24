@@ -25,14 +25,16 @@
   <input id="my-import-file" type="file" accept=".json,application/json" hidden>
 </div>
 
-{% if editing %}<p class="hint">Bearbeiten-Modus: Links und Gruppen am Griff <span class="grip-demo">⠿</span> ziehen, um sie zu sortieren oder in eine andere Gruppe zu verschieben. Die Gruppen-Reihenfolge ist hier die Standard-Anordnung für alle; wer sich die Gruppen selbst angeordnet hat, behält seine eigene.</p>{% endif %}
+{% if editing %}<p class="hint">Bearbeiten-Modus: Links und Gruppen am Griff <span class="grip-demo">⠿</span> ziehen, um sie zu sortieren oder in eine andere Gruppe zu verschieben. Eine Gruppe auf die obere oder untere Hälfte einer anderen ziehen stapelt sie in derselben Spalte, auf den linken oder rechten Rand legt sie in eine eigene Spalte. Die Gruppen-Reihenfolge ist hier die Standard-Anordnung für alle; wer sich die Gruppen selbst angeordnet hat, behält seine eigene.</p>{% endif %}
 
 {% if not groups %}
 <p class="empty">Noch keine Links.{% if not editing %} Zum Anlegen oben rechts auf „Bearbeiten“ klicken.{% endif %}</p>
 {% endif %}
 
 <div id="groups" class="groups">
-{% for g in groups %}
+{% for st in stacks %}
+ <div class="stack">
+{% for g in st %}
   <section class="group{% if g.own %} own{% endif %}{% if g.color %} gc gc-{{ g.color }}{% endif %}" data-id="{{ g.id }}" data-name="{{ g.name }}" data-color="{{ g.color }}"
            data-scheme="{{ g.scheme }}" data-prefix="{{ g.prefix }}" data-suffix="{{ g.suffix }}">
     <h2>
@@ -78,6 +80,8 @@
     {% endfor %}
     </ul>
   </section>
+{% endfor %}
+ </div>
 {% endfor %}
 </div>
 <p id="nomatch" class="empty" hidden>Kein Link passt zum Filter.</p>

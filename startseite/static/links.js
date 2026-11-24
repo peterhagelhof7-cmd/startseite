@@ -437,15 +437,45 @@
       if (after) { if (after !== drag.el.nextSibling) ul.insertBefore(drag.el, after); }
       else if (ul.lastElementChild !== drag.el) ul.appendChild(drag.el);
     } else {
-      const g = e.target.closest(".group");
-      if (!g) return;
+      // Gruppe: linker/rechter Rand -> eigene Spalte davor/dahinter;
+      // Mitte -> in dieselbe Spalte ueber/unter die Gruppe (gestapelt)
+      const g = e.target.closest(".group"), st = e.target.closest(".stack");
+      if (!g && !st) return;
       e.preventDefault();
       if (g === drag.el) return;
+      if (!g) {                                        // Luecke zwischen/unter den Gruppen einer Spalte
+        const next = $$(":scope > .group:not(.dragging)", st).find((x) => {
+          const rr = x.getBoundingClientRect();
+          return e.clientY < rr.top + rr.height / 2;
+        });
+        if (next) { if (next.previousElementSibling !== drag.el) st.insertBefore(drag.el, next); }
+        else if (st.lastElementChild !== drag.el) st.appendChild(drag.el);
+        return;
+      }
       const r = g.getBoundingClientRect();
-      const before = e.clientX < r.left + r.width / 2;
-      g.parentNode.insertBefore(drag.el, before ? g : g.nextSibling);
+      const fx = (e.clientX - r.left) / r.width;
+      if (fx < 0.25 || fx > 0.75) {
+        ownStack(g.parentElement, fx < 0.25);
+      } else if (e.clientY < r.top + r.height / 2) {
+        if (g.previousElementSibling !== drag.el) g.parentElement.insertBefore(drag.el, g);
+      } else if (g.nextElementSibling !== drag.el) {
+        g.parentElement.insertBefore(drag.el, g.nextElementSibling);
+      }
     }
   });
+
+  // gezogene Gruppe als eigene Spalte vor/hinter die Spalte ref setzen
+  function ownStack(ref, before) {
+    let s = drag.el.parentElement;
+    if (s.children.length > 1) {
+      s = document.createElement("div");
+      s.className = "stack";
+      s.appendChild(drag.el);
+    }
+    const at = before ? ref : ref.nextElementSibling;
+    if (at === s || (s.parentElement && s.nextElementSibling === at)) return;
+    ref.parentElement.insertBefore(s, at);
+  }
 
   document.addEventListener("drop", (e) => { if (drag) e.preventDefault(); });
 
@@ -458,8 +488,10 @@
       try { saveMyLinks(readMyLinks()); } catch (x) { toast(x.message, true); }
       return;
     }
+    $$(".stack").forEach((s) => { if (!s.children.length) s.remove(); });
     if (!editing) {
-      const ids = $$(".group").map((g) => g.dataset.id).join(".");
+      // Spalten durch ".", Gruppen in derselben Spalte durch "_" getrennt
+      const ids = $$(".stack").map((s) => $$(".group", s).map((g) => g.dataset.id).join("_")).filter(Boolean).join(".");
       document.cookie = `${LAYOUT_COOKIE}=${ids}; Max-Age=315360000; Path=/; SameSite=Lax`;
       if (!$("[data-act=reset-layout]")) {
         const b = document.createElement("button");
@@ -471,7 +503,10 @@
       return;
     }
     // Standard-Reihenfolge fuer alle: ohne die eigenen Links (die gibt es nur im Cookie)
-    const layout = $$(".group:not(.own)").map((g) => ({ id: +g.dataset.id, links: $$(".link", g).map((l) => +l.dataset.id) }));
+    const layout = $$(".group:not(.own)").map((g) => ({
+      id: +g.dataset.id, links: $$(".link", g).map((l) => +l.dataset.id),
+      stacked: !!(g.previousElementSibling && !g.previousElementSibling.classList.contains("own")),
+    }));
     $$(".group").forEach((g) => ($(".count", g).textContent = $$(".link", g).length));
     try {
       await api("PUT", "/api/order", { groups: layout });

@@ -36,7 +36,8 @@ CREATE INDEX IF NOT EXISTS link_grp ON link(grp_id, pos);
 # Spalten, die nach 0.2.0 dazugekommen sind (Migration bestehender Datenbanken)
 MIGRATIONS = {
     "grp": {"scheme": "TEXT NOT NULL DEFAULT ''", "prefix": "TEXT NOT NULL DEFAULT ''",
-            "suffix": "TEXT NOT NULL DEFAULT ''"},
+            "suffix": "TEXT NOT NULL DEFAULT ''",
+            "stacked": "INTEGER NOT NULL DEFAULT 0"},   # 0.7.0: 1 = in derselben Spalte unter der vorigen Gruppe
     "link": {"host": "TEXT NOT NULL DEFAULT ''"},
 }
 
@@ -163,13 +164,14 @@ class Store:
     def all(self) -> list[dict]:
         with self.lock:
             groups = [dict(r) | {"links": []}
-                      for r in self._q("SELECT id, name, scheme, prefix, suffix FROM grp ORDER BY pos, id")]
+                      for r in self._q("SELECT id, name, scheme, prefix, suffix, stacked FROM grp ORDER BY pos, id")]
             by_id = {g["id"]: g for g in groups}
             for r in self._q("SELECT id, grp_id, name, url, note, host FROM link ORDER BY pos, id"):
                 g = by_id.get(r["grp_id"])
                 if g is not None:
                     g["links"].append(dict(r))
         for g in groups:
+            g["stacked"] = bool(g["stacked"])
             g["template"] = build_url(g["scheme"], g["prefix"], "…", g["suffix"]) if g["scheme"] else ""
         return groups
 
@@ -206,8 +208,15 @@ class Store:
 
     def delete_group(self, gid):
         with self.lock:
-            if self._q("DELETE FROM grp WHERE id=?", (gid,)).rowcount == 0:
+            row = self._q("SELECT pos, stacked FROM grp WHERE id=?", (gid,)).fetchone()
+            if row is None or self._q("DELETE FROM grp WHERE id=?", (gid,)).rowcount == 0:
                 raise KeyError(gid)
+            if not row["stacked"]:
+                # war oberste Gruppe einer Spalte: die naechste darunter wird oberste, statt in die Spalte davor zu rutschen
+                nxt = self._q("SELECT id FROM grp WHERE pos > ? OR (pos = ? AND id > ?) ORDER BY pos, id LIMIT 1",
+                              (row["pos"], row["pos"], gid)).fetchone()
+                if nxt is not None:
+                    self._q("UPDATE grp SET stacked=0 WHERE id=?", (nxt["id"],))
 
     # ---- Links ----
     def add_link(self, gid, name, url, note="") -> int:
@@ -247,7 +256,8 @@ class Store:
 
     # ---- Reihenfolge (Drag & Drop) ----
     def reorder(self, layout):
-        """layout = [{"id": gruppe, "links": [link, ...]}, ...] in der neuen Reihenfolge.
+        """layout = [{"id": gruppe, "links": [link, ...], "stacked": bool}, ...] in der neuen Reihenfolge;
+        stacked = Gruppe steht in derselben Spalte unter der vorigen.
         Wird ein Link mit Kurzteil in eine andere Gruppe gezogen, gilt dort deren Vorlage;
         hat die Zielgruppe keine, bleibt die bisherige Adresse fest stehen."""
         if not isinstance(layout, list):
@@ -257,6 +267,7 @@ class Store:
             links = {r["id"]: r for r in self._q("SELECT id, grp_id, host FROM link")}
             try:
                 plan = [(int(g["id"]), [int(x) for x in g.get("links", [])]) for g in layout]
+                stacked = [bool(g.get("stacked")) and i > 0 for i, g in enumerate(layout)]
             except (TypeError, ValueError, KeyError, AttributeError):
                 raise StoreError("Ungültige Reihenfolge") from None
             if any(g not in groups for g, _ in plan) or any(l not in links for _, ls in plan for l in ls):
@@ -264,7 +275,7 @@ class Store:
             self._q("BEGIN")
             try:
                 for gi, (gid, lids) in enumerate(plan):
-                    self._q("UPDATE grp SET pos=? WHERE id=?", (gi, gid))
+                    self._q("UPDATE grp SET pos=?, stacked=? WHERE id=?", (gi, int(stacked[gi]), gid))
                     g = groups[gid]
                     for li, lid in enumerate(lids):
                         l = links[lid]
@@ -287,6 +298,8 @@ class Store:
             eg = {"name": g["name"], "links": []}
             if g["scheme"]:
                 eg.update(scheme=g["scheme"], prefix=g["prefix"], suffix=g["suffix"])
+            if g["stacked"]:
+                eg["stacked"] = True                     # in derselben Spalte unter der vorigen Gruppe
             for l in g["links"]:
                 el = {"name": l["name"], "url": l["url"], "note": l["note"]}
                 if l["host"]:
@@ -311,13 +324,18 @@ class Store:
                     raise StoreError("Ungültiger Link in der Datei")
                 links.append((l.get("name"), str(l.get("host") or "").strip(), normalize_url(l.get("url")),
                               _note(l.get("note"))))
-            plan.append((_name(g.get("name"), "Gruppenname"), tpl, links))
+            plan.append((_name(g.get("name"), "Gruppenname"), tpl, links, g.get("stacked") is True))
         added_g = added_l = skipped = 0
         existing = {g["name"].lower(): g for g in self.all()}
-        for gname, tpl, links in plan:
+        prev_new = False
+        for gname, tpl, links, stacked in plan:
             g = existing.get(gname.lower())
-            if g is None:
+            new = g is None
+            if new:
                 gid = self.add_group(gname, *tpl)
+                if stacked and prev_new:             # Spalte nur uebernehmen, wenn die Gruppe darueber auch neu ist
+                    with self.lock:
+                        self._q("UPDATE grp SET stacked=1 WHERE id=?", (gid,))
                 g = existing[gname.lower()] = {"id": gid, "name": gname, "links": []}
                 added_g += 1
             urls = {l["url"] for l in g["links"]}
@@ -335,4 +353,5 @@ class Store:
                 g["links"].append({"url": full})
                 urls.add(full)
                 added_l += 1
+            prev_new = new
         return {"groups": added_g, "links": added_l, "skipped": skipped}
